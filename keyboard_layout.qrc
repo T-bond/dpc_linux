@@ -13,7 +13,6 @@
         <file>image/button/icon_menu_knob.png</file>
         <file>image/button/icon_menu_radi.png</file>
         <file>image/button/icon_menu_set.png</file>
-        <file>image/img_area_opera.png</file>
         <file>image/icon/icon_light_aurora.png</file>
         <file>image/icon/icon_light_breathing.png</file>
         <file>image/icon/icon_light_custom.png</file>
@@ -35,5 +34,10 @@
         <file>image/icon/icon_custom_multimedia.png</file>
         <file>image/button/img_knobbutton.png</file>
         <file>image/icon/icon_knob.png</file>
+        <file>image/drevo-power-console.png</file>
+        <file>font/OpenSans-ExtraBold.ttf</file>
+        <file>font/OpenSans-Light.ttf</file>
+        <file>font/OpenSans-Regular.ttf</file>
+        <file>font/OpenSans-Semibold.ttf</file>
     </qresource>
 </RCC>

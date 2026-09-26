@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DREVO Power Console
+Comment=Configure DREVO keyboards
+Exec=DrevoPowerConsole
+Icon=drevo-power-console
+Terminal=false
+Categories=Settings;HardwareSettings;

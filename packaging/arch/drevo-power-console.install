@@ -1,0 +1,11 @@
+post_install() {
+    udevadm control --reload-rules 2>/dev/null
+    udevadm trigger --subsystem-match=usb --attr-match=idVendor=1a2c 2>/dev/null
+    echo ">>> Replug the keyboard (or log out and in) if it is not accessible yet."
+    echo ">>> Your user has to be in the 'users' group: groups \$USER"
+}
+
+post_upgrade() {
+    udevadm control --reload-rules 2>/dev/null
+    udevadm trigger --subsystem-match=usb --attr-match=idVendor=1a2c 2>/dev/null
+}

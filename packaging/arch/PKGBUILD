@@ -1,0 +1,42 @@
+# Builds the committed state of the git repository this file is in (not uncommitted changes).
+# To build from GitHub instead, replace the source line with:
+#   source=("$pkgname::git+https://github.com/T-bond/dpc_linux.git")
+# See "Arch Linux package" in the README.
+
+# not "drevo-power-console-git": that name belongs to the AUR package of the original project,
+# and yay would replace this build with it on updates
+pkgname=drevo-power-console-qt6-git
+pkgver=r0.0000000
+pkgrel=1
+pkgdesc="Configuration tool for DREVO keyboards (key assignments, lighting, settings)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/T-bond/dpc_linux"
+license=('unknown')
+depends=('qt6-base' 'qt6-declarative' 'libusb')
+makedepends=('git' 'cmake' 'qt6-tools')
+optdepends=('qt6-translations: translated Qt dialog buttons')
+provides=('drevo-power-console')
+conflicts=('drevo-power-console' 'drevo-power-console-git')
+install=drevo-power-console.install
+# makepkg's debug flags (-ffile-prefix-map) break when the build path contains spaces
+options=('!debug')
+source=("$pkgname::git+file://${startdir%/packaging/arch}")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+    cmake -S "$pkgname" -B build \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DINSTALL_UDEV_RULES=ON \
+        -Wno-dev
+    cmake --build build --parallel
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+}
