@@ -67,7 +67,11 @@ signals:
 public slots:
 
 protected:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    void enterEvent(QEnterEvent *);
+#else
     void enterEvent(QEvent *);
+#endif
     void leaveEvent(QEvent *);
     void mousePressEvent(QMouseEvent *event);
     //void mouseReleaseEvent(QMouseEvent *event);

@@ -1,12 +1,10 @@
 DREVO Power Console Linux
 ====
 
-Qt Creator 4.3.1
-----
-Based on Qt 5.9.0 (GCC 5.3.1 20160406 (Red Hat 5.3.1-6), 64 bit)
+Built with CMake against Qt 6 (Qt 5.11 or newer also works) and [libusb](https://libusb.info/) 1.0.
 
-libusb: https://sourceforge.net/projects/libusb/
---
+The whole application is built from source. The HID packet encoders that used to ship as the prebuilt
+`lib/libhidkeyboard.a` are now implemented in `keyboarddata.cpp`, which also documents the packet formats.
 
 Installation
 --
@@ -16,17 +14,25 @@ Package available through [AUR](https://aur.archlinux.org/packages/drevo-power-c
 
 #### Building Manually
 
+###### Arch Linux package requirements
+```bash
+sudo pacman -S --needed base-devel cmake qt6-base libusb
+```
+
 ###### Debian/Ubuntu package requirements
 ```bash
-sudo apt install build-essential qt5-default libusb-1.0-0-dev
+sudo apt install build-essential cmake qt6-base-dev libusb-1.0-0-dev
 ```
 
 ###### run:
 ```bash
-cd dpc_linux
-qmake -makefile DrevoPowerConsole.pro
-make
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/DrevoPowerConsole
 ```
+
+To install system-wide (optionally with the udev rule below), run
+`cmake -B build -DINSTALL_UDEV_RULES=ON && sudo cmake --install build`.
 
 ###### Udev Fix
 To be able to run the program with non root access you will need to copy the `udev` rule to your installation:

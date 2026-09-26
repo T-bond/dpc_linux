@@ -92,8 +92,7 @@ void RadiLightWidget::on_button_custom_clicked()
         hid_getRadiData(data, kb_data);
         m_dev_comm->setDeviceData(kb_data, 8);
 
-        QString style_sheet;
-        style_sheet.sprintf("QPushButton{background-color: rgba(%d, %d, %d, 255)}",
+        QString style_sheet = QString::asprintf("QPushButton{background-color: rgba(%d, %d, %d, 255)}",
                             data.r_value, data.g_value, data.b_value);
         ui->button_custom->setStyleSheet(style_sheet);
 
@@ -418,8 +417,7 @@ void RadiLightWidget::setBackLightMode(int light_mode)
         ui->label_randomcolor->setVisible(true);
         ui->checkBox_custom->setVisible(true);
 
-        QString style_sheet;
-        style_sheet.sprintf("QPushButton{background-color: rgba(%d, %d, %d, 255)}",
+        QString style_sheet = QString::asprintf("QPushButton{background-color: rgba(%d, %d, %d, 255)}",
                             data.r_value, data.g_value, data.b_value);
         ui->button_custom->setStyleSheet(style_sheet);
 
@@ -495,8 +493,7 @@ void RadiLightWidget::setBackLightMode(int light_mode)
         ui->label_randomcolor->setVisible(true);
         ui->checkBox_custom->setVisible(true);
 
-        QString style_sheet;
-        style_sheet.sprintf("QPushButton{background-color: rgba(%d, %d, %d, 255)}",
+        QString style_sheet = QString::asprintf("QPushButton{background-color: rgba(%d, %d, %d, 255)}",
                             data.r_value, data.g_value, data.b_value);
         ui->button_custom->setStyleSheet(style_sheet);
 

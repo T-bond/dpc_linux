@@ -146,7 +146,11 @@ void QKeyboardCtrl::clearAllKeys()
     m_vecKey.clear();
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void QKeyboardCtrl::enterEvent(QEnterEvent *)
+#else
 void QKeyboardCtrl::enterEvent(QEvent *)
+#endif
 {
     if (m_kb_ctrl_mode == KBM_LIGHT_NONE || m_kb_ctrl_mode == KBM_LIGHT_STATIC)
         return ;

@@ -30,7 +30,11 @@ void tabButton::setTabCheck(bool check)
     update();
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void tabButton::enterEvent(QEnterEvent*)
+#else
 void tabButton::enterEvent(QEvent*)
+#endif
 {
     m_index = 1;
     m_enter = true;
@@ -70,7 +74,7 @@ void tabButton::paintEvent(QPaintEvent* e)
         painter.setPen(QColor(51, 51, 51));
         QFont font;
         QFontMetrics metric(font);
-        int text_width = metric.width(m_text);
+        int text_width = metric.horizontalAdvance(m_text);
         painter.drawText((width() - text_width)/2, 32, m_text);
         //QPushButton::paintEvent(e);
     }
