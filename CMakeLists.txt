@@ -9,9 +9,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-# Qt 6 is preferred, Qt 5 still works
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Sql)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Sql)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Sql)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED IMPORTED_TARGET libusb-1.0)
@@ -36,8 +34,8 @@ add_executable(DrevoPowerConsole
 target_compile_definitions(DrevoPowerConsole PRIVATE QT_DEPRECATED_WARNINGS)
 
 target_link_libraries(DrevoPowerConsole PRIVATE
-    Qt${QT_VERSION_MAJOR}::Widgets
-    Qt${QT_VERSION_MAJOR}::Sql
+    Qt6::Widgets
+    Qt6::Sql
     PkgConfig::LIBUSB
 )
 

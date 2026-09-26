@@ -1,7 +1,7 @@
 DREVO Power Console Linux
 ====
 
-Built with CMake against Qt 6 (Qt 5.11 or newer also works) and [libusb](https://libusb.info/) 1.0.
+Built with CMake against Qt 6 and [libusb](https://libusb.info/) 1.0.
 
 The whole application is built from source. The HID packet encoders that used to ship as the prebuilt
 `lib/libhidkeyboard.a` are now implemented in `keyboarddata.cpp`, which also documents the packet formats.

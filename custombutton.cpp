@@ -30,11 +30,7 @@ void tabButton::setTabCheck(bool check)
     update();
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 void tabButton::enterEvent(QEnterEvent*)
-#else
-void tabButton::enterEvent(QEvent*)
-#endif
 {
     m_index = 1;
     m_enter = true;
