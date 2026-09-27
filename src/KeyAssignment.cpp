@@ -63,8 +63,7 @@ QVariantList KeyAssignment::functionTree() const
         childItem(tr("Prev"), KEY_MEDIA_PREVIOUS),
         childItem(tr("Next"), KEY_MEDIA_NEXT),
         childItem(tr("Volume +"), KEY_MEDIA_VOL_UP),
-        // quirk (kept from the widget UI): the knob maps "Volume -" to volume up
-        childItem(tr("Volume -"), m_knob ? KEY_MEDIA_VOL_UP : KEY_MEDIA_VOL_DOWN),
+        childItem(tr("Volume -"), KEY_MEDIA_VOL_DOWN),
         childItem(tr("Mute"), KEY_MEDIA_VOL_SILENT),
     };
     QVariantList linux_keys = {
@@ -147,7 +146,8 @@ QVariantMap KeyAssignment::describe(int key_value, const QString &key_name) cons
 KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int macro_value, const QString &macro_desc,
                                               int new_key_index, int syskey1_index, int syskey2_index)
 {
-    if (key_value <= 0)
+    // no current profile: the hardware profile shows none
+    if (key_value <= 0 || DeviceManager::instance()->currentProfile() <= 0)
         return NoKeySelected;
 
     DeviceManager *device = DeviceManager::instance();
@@ -175,17 +175,17 @@ KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int
             return NotSaved;
 
         data.macro_value = all_keys.at(new_key_index).key_value;
-        QString key_name = all_keys.at(new_key_index).ket_text;
         data.macro_value1 = sys_keys.at(syskey1_index).key_value;
-        QString syskey1_name = sys_keys.at(syskey1_index).ket_text;
         data.macro_value2 = sys_keys.at(syskey2_index).key_value;
-        QString syskey2_name = sys_keys.at(syskey2_index).ket_text;
 
-        // quirk (kept from the widget UI): any first modifier names both modifiers
+        // "First modifier+Second modifier+Key"; index 0 is no modifier and is left out
+        QStringList parts;
         if (syskey1_index != 0)
-            data.macro_name = syskey1_name + "+" + syskey2_name + "+" + key_name;
-        else if (syskey2_index == 0)
-            data.macro_name = key_name;
+            parts.append(sys_keys.at(syskey1_index).ket_text);
+        if (syskey2_index != 0)
+            parts.append(sys_keys.at(syskey2_index).ket_text);
+        parts.append(all_keys.at(new_key_index).ket_text);
+        data.macro_name = parts.join('+');
     }
     else if (macro_type == KEY_MOUSE)
     {
@@ -194,8 +194,8 @@ KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int
         case KEY_MOUSE_LEFT:        data.macro_value = int(drevo::MouseAction::LeftClick);     break;
         case KEY_MOUSE_MIDDLE:      data.macro_value = int(drevo::MouseAction::MiddleClick);   break;
         case KEY_MOUSE_RIGHT:       data.macro_value = int(drevo::MouseAction::RightClick);    break;
-        case KEY_MOUSE_SCROLLUP:    data.macro_value = int(drevo::MouseAction::Scroll);        break;
-        case KEY_MOUSE_SCROLLDOWN:  data.macro_value = int(drevo::MouseAction::Scroll);        break;
+        case KEY_MOUSE_SCROLLUP:    data.macro_value = int(drevo::MouseAction::ScrollUp);      break;
+        case KEY_MOUSE_SCROLLDOWN:  data.macro_value = int(drevo::MouseAction::ScrollDown);    break;
         case KEY_MOUSE_BUTTON4:     data.macro_value = int(drevo::MouseAction::Button4);       break;
         case KEY_MOUSE_BUTTON5:     data.macro_value = int(drevo::MouseAction::Button5);       break;
         default:                                                                        break;
@@ -244,8 +244,8 @@ KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int
     if (!device->db()->addKeyProfile(data))
         return Unassigned;
 
-    // write data to keyboard
-    device->writeKeyData(data);
+    // write data to the keyboard
+    device->writeKey(key_value);
 
     return data.macro_type == KEY_REALVALUE ? Unassigned : Assigned;
 }
@@ -253,7 +253,8 @@ KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int
 // restore the default function of a key
 KeyAssignment::SaveResult KeyAssignment::restoreDefault(int key_value)
 {
-    if (key_value <= 0)
+    // no current profile: the hardware profile shows none
+    if (key_value <= 0 || DeviceManager::instance()->currentProfile() <= 0)
         return NoKeySelected;
 
     DeviceManager *device = DeviceManager::instance();
@@ -264,6 +265,6 @@ KeyAssignment::SaveResult KeyAssignment::restoreDefault(int key_value)
     data.macro_type = KEY_REALVALUE;
 
     if (device->db()->addKeyProfile(data))
-        device->writeKeyDefault(key_value);
+        device->writeKey(key_value);
     return Unassigned;
 }

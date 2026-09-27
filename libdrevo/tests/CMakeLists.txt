@@ -6,3 +6,8 @@ target_link_libraries(tst_protocol PRIVATE drevo_keyboard Qt6::Test)
 target_compile_definitions(tst_protocol PRIVATE GOLDEN_FILE="${CMAKE_CURRENT_SOURCE_DIR}/golden.txt")
 
 add_test(NAME tst_protocol COMMAND tst_protocol)
+
+# programs one key with a raw code, to find out what codes do on the keyboard
+add_executable(drevo_probe drevo_probe.cpp)
+target_include_directories(drevo_probe PRIVATE ../src)
+target_link_libraries(drevo_probe PRIVATE drevo_keyboard)

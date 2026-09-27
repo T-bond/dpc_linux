@@ -26,14 +26,6 @@ using KeyPacket = std::array<quint8, 256>;
 // per-key colors of the custom light mode
 using LedPacket = std::array<quint8, 408>;
 
-// hardware profile slot (Fn+Ctrl+F1..F3)
-enum class Slot
-{
-    G1 = 0,
-    G2 = 1,
-    G3 = 2,
-};
-
 // macro steps (not used by the application yet)
 enum class MacroStepType
 {
@@ -64,10 +56,15 @@ struct MacroStep
 int keyIndex(int key_value, Layout layout);
 // the key exists on at least one layout
 bool isKnownKey(int key_value);
+// keys and knob actions stored per hardware profile on a layout, in key index order
+QList<int> keyValues(Layout layout);
+// keys stored per hardware profile in flash
+int keysPerProfile(Layout layout);
 
 // empty if the key is not on the layout
-std::optional<KeyPacket> encodeKeyAction(Key key, const KeyAction &action, Layout layout, Slot slot);
-std::optional<KeyPacket> encodeMacro(Key key, int play_times, const QList<MacroStep> &steps, Layout layout, Slot slot);
+std::optional<KeyPacket> encodeKeyAction(Key key, const KeyAction &action, Layout layout, HardwareProfile profile);
+std::optional<KeyPacket> encodeMacro(Key key, int play_times, const QList<MacroStep> &steps, Layout layout,
+                                     HardwareProfile profile);
 
 Report encodeLighting(const LightingEffect &effect);
 LedPacket encodeLedColors(const QList<LedColor> &colors, Layout layout);

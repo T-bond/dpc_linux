@@ -1,6 +1,7 @@
 #ifndef DEVICEDB_H
 #define DEVICEDB_H
 
+#include <QHash>
 #include <QSettings>
 #include <QString>
 #include <QVector>
@@ -44,6 +45,12 @@ struct KeyData
     int             macro_value2;
     QString     macro_name;
 };
+
+// key assignments by key value; keys with their default function are not listed
+using KeyMap = QHash<int, KeyData>;
+
+// hardware profiles of the keyboard (G1..G3, Fn+Ctrl+F1..F3), numbered 0..2
+inline constexpr int kHardwareProfileCount = 3;
 
 // KEY DEFINE
 enum KEY_DEFINE
@@ -100,6 +107,16 @@ enum KEY_LINUX_DEFINE
 //   light\custom\side\<bar>\<index>    custom side LED color, bar: left, top, right, bottom;
 //                                      index left to right / top to bottom
 //   keys\<key value>\...               key assignment (see KeyData)
+//   hardware_profile                   hardware profile the profile belongs to, 1..3 (G1..G3)
+//
+// section [hardware], the hardware profiles (n = 1..3):
+//   selected                           hardware profile shown in the application
+//   g<n>\profile                       profile last written to it, missing if none (it was moved
+//                                      to another hardware profile or deleted, or the keyboard was reset)
+//   g<n>\name                          name of the profile last written to it
+//   g<n>\known                         the keys below are what the keyboard stores; false if they
+//                                      are not known (never written, or a transfer failed)
+//   g<n>\keys\<key value>\...          key assignments last written to it (see KeyData)
 class DeviceDB
 {
 public:
@@ -119,9 +136,26 @@ public:
     // new profile with the settings of another one, returns its id
     int duplicateProfile(int source, const QString &name);
     bool removeProfile(int profile);
-    // profile selected when the program was closed
-    int selectedProfile() const;
-    bool setSelectedProfile(int profile);
+    // key assignments of a profile
+    KeyMap profileKeys(int profile) const;
+
+    // hardware profile (0..2) a profile belongs to
+    int profileHardwareProfile(int profile) const;
+    bool setProfileHardwareProfile(int profile, int hardware_profile);
+    // hardware profile shown in the application
+    int selectedHardwareProfile() const;
+    bool setSelectedHardwareProfile(int hardware_profile);
+    // profile last written to a hardware profile, -1 if none
+    int hardwareProfileProfile(int hardware_profile) const;
+    bool setHardwareProfileProfile(int hardware_profile, int profile);
+    // what the keyboard stores in a hardware profile: the key assignments last written, whether
+    // they are known, and the name of the profile they came from
+    KeyMap hardwareProfileKeys(int hardware_profile) const;
+    bool hardwareProfileKnown(int hardware_profile) const;
+    QString hardwareProfileName(int hardware_profile) const;
+    bool setHardwareProfileContent(int hardware_profile, const KeyMap &keys, bool known, const QString &name);
+    // set one key of what the keyboard stores (default = remove it)
+    bool setHardwareProfileKey(int hardware_profile, int key_value, const KeyData *data, bool known);
 
     // read config data
     bool readConfigData(int profile, QString key, QString& value);
@@ -156,10 +190,16 @@ public:
 private:
     // write default config data
     void initConfigData(int profile);
+    // hardware profile settings of a configuration from before hardware profiles
+    void migrateHardwareProfiles();
+    // key assignment stored in a settings group, false if there is none
+    bool readKey(const QString &group, KeyData &data) const;
+    void writeKey(const QString &group, const KeyData &data);
     // save and check the result
     bool store();
 
-    QSettings           m_settings;
+    // mutable: reading a group needs beginGroup()
+    mutable QSettings   m_settings;
 };
 
 #endif // DEVICEDB_H

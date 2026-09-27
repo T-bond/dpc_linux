@@ -17,6 +17,8 @@ struct KeyboardKey
     QString     key_text;
     int         key_value;
     QRect       key_rect;
+    // lower part of an L-shaped key (the ISO / JIS Enter), below the right end of key_rect; empty otherwise
+    QRect       key_lower_rect;
     QColor      key_color;
     bool        key_check;
 };
@@ -33,7 +35,8 @@ public:
     {
         LightStatic = 0,    // whole keyboard lit with one color, no interaction
         LightCustom,        // per-key and side LED colors, keys and side LEDs can be selected
-                            // (Shift or Ctrl adds to the selection)
+                            // (Shift or Ctrl adds to the selection; dragging selects the
+                            // keys of a rectangle)
         CustomKey,          // key assignment, hover and select a single key
     };
     Q_ENUM(ViewMode)
@@ -49,6 +52,7 @@ public:
         KeyColorRole,
         KeyCheckedRole,
         KeySideLedRole,     // side LED around the keyboard, not a key
+        KeyLowerRectRole,   // lower part of an L-shaped key, an empty rect for other keys
     };
 
     explicit KeyboardModel(QObject *parent = nullptr);
@@ -74,6 +78,11 @@ public:
     // check or uncheck the key at index, other keys keep their check
     Q_INVOKABLE void setCheck(int index, bool key_check);
     Q_INVOKABLE bool isChecked(int index) const;
+    // indexes of the checked keys and side LEDs
+    Q_INVOKABLE QList<int> checkedIndexes() const;
+    // check the keys in base and the keys a rectangle of the keyboard image touches, uncheck the
+    // others (rubber band selection); the side LEDs around the image only with side_leds
+    Q_INVOKABLE void checkInRect(const QRectF &rect, const QList<int> &base, bool side_leds = false);
     // key values of the LEDs of a side light bar (drevo::LightBar value)
     Q_INVOKABLE QVariantList sideLedValues(int bar) const;
 

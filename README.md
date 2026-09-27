@@ -4,6 +4,10 @@ DREVO Power Console Linux
 Built with CMake against Qt 6.5 or newer and [libusb](https://libusb.info/) 1.0. The user interface is written in
 QML (Qt Quick Controls, in `qml/`); the C++ side (`src/`, headers in `include/`) talks to the keyboard and stores the settings.
 
+The window has a navigation rail on the left (keys, knob, lighting, settings, the profile selector and a
+switch for the keyboard lights) and resizes freely. It follows the desktop's light or dark color scheme;
+*Settings → Application → Appearance* picks one explicitly.
+
 Installation
 --
 
@@ -58,8 +62,10 @@ To install system-wide (optionally with the udev rule below), run
 #### Command line options
 
 - `--debug`: print every packet sent to the keyboard (as hex bytes, marked `(not connected)` when no
-  keyboard was found, or `(failed)` when the transfer failed). Without it, the program prints no packet
-  data. The output uses the `drevo.packets` logging category; when the program is not started from a
+  keyboard was found, or `(failed)` when the transfer failed), followed by what it does, e.g.
+  `05 ff 00 07 e0 01 a5 01 # Set key W (G2) to Mouse Left Click (1/42)`; a packet that takes several
+  reports numbers them, and its trailing all-zero reports (padding) are printed as one line, e.g.
+  `(3-42/42, zeros)`. Without it, the program prints no packet data. The output uses the `drevo.packets` logging category; when the program is not started from a
   terminal, Qt may send it to the system journal instead (set `QT_FORCE_STDERR_LOGGING=1` to keep it on
   the console).
 - `--help`: list the options.
@@ -67,9 +73,27 @@ To install system-wide (optionally with the udev rule below), run
 Only one instance can use the keyboard: starting the program again brings the running window to the
 front instead (on Wayland, the desktop may only highlight it when started from a terminal).
 
+#### Profiles and hardware profiles
+
+The keyboard stores key assignments in three hardware profiles, G1..G3, switched on the keyboard with
+Fn+Ctrl+F1..F3; they keep working without the program. Each profile of the program belongs to one
+hardware profile (*G1 | G2 | G3* in the sidebar, *Move to* in the profile menu):
+
+- the sidebar shows one hardware profile and its profiles; showing another one writes nothing to the
+  keyboard (switch to it on the keyboard with Fn+Ctrl+F*n* to use it),
+- selecting a profile writes its key assignments to its hardware profile, and changes are written to it
+  right away,
+- a profile moved to another hardware profile is written there; the former one keeps its keys on the
+  keyboard, but has no profile until one of its profiles is selected.
+
+The program cannot read the keyboard, so it remembers what it wrote to each hardware profile and only
+sends the keys that differ; a hardware profile it has not written yet gets all keys. Lighting and the
+keyboard settings (report rate, sleep times) are not part of a hardware profile yet: they follow the
+profile shown in the program.
+
 #### System tray
 
-With *Settings → Window → Close to the system tray*, closing the window keeps the program running in the
+With *Settings → Application → Close to the system tray*, closing the window keeps the program running in the
 tray. Clicking the tray icon shows the window again; its menu selects the profile, switches the keyboard
 lights off (without changing the profile; selecting it again, or any lighting change, turns them back on)
 and exits the program.
@@ -88,4 +112,9 @@ To be able to run the program with non root access you will need to copy the `ud
 
 ```bash
 cp udev/77-drevo-usb-allow-users.rules /usr/lib/udev/rules.d/
+udevadm control --reload && udevadm trigger
 ```
+
+The rule gives the `users` group access to the keyboard's `hidraw` device. The program sends its packets
+through it, so the kernel keeps handling the keyboard, and media keys and mouse functions keep working
+while the program runs.

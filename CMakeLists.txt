@@ -28,18 +28,27 @@ qt_add_executable(DrevoPowerConsole
     src/main.cpp
     src/DeviceDB.cpp                include/DeviceDB.h
     src/QtKeyBoardKey.cpp           include/QtKeyBoardKey.h
-    src/TabIconProvider.cpp         include/TabIconProvider.h
+    src/IconProvider.cpp            include/IconProvider.h
     src/SingleInstance.cpp          include/SingleInstance.h
     keyboard_layout.qrc
 )
+
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(DrevoPowerConsole
     URI DrevoPowerConsole
     VERSION 1.0
     QML_FILES
         qml/Main.qml
-        qml/SpriteButton.qml
+        qml/Theme.qml
+        qml/TintedIcon.qml
+        qml/Card.qml
+        qml/Chip.qml
+        qml/PageHeader.qml
+        qml/NavButton.qml
+        qml/KeyboardStage.qml
         qml/KeyboardView.qml
+        qml/KeyShape.qml
         qml/AssignmentTree.qml
         qml/AssignmentPage.qml
         qml/CustomKeyPage.qml
@@ -47,6 +56,7 @@ qt_add_qml_module(DrevoPowerConsole
         qml/LightingPage.qml
         qml/SettingsPage.qml
         qml/ProfileBar.qml
+        qml/MessageBox.qml
     SOURCES
         src/DeviceManager.cpp       include/DeviceManager.h
         src/KeyboardModel.cpp       include/KeyboardModel.h

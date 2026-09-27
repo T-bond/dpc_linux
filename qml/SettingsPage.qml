@@ -2,217 +2,253 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
+import QtQuick.Layouts
 import DrevoPowerConsole
 
-// report rate and sleep times
+// report rate, sleep times, layout and application settings
 Control {
     id: root
 
-    width: 1135
-    height: 620
     padding: 0
-    font.family: "Open Sans"
-    font.pointSize: 12
+    font.family: Theme.fontFamily
 
     KeyboardSettings {
         id: settings
-    }
-
-    component Heading: Label {
-        font.pointSize: 14
-    }
-
-    // report interval in ms
-    component RateButton: RadioButton {
-        property int rate
-        height: 23
-        padding: 0
-        checked: settings.reportRate === rate
-        onClicked: settings.reportRate = rate
-    }
-
-    // sleep time in s, 0 = never; the checkbox switches to the default time
-    component SleepTime: Item {
-        id: sleepTime
-
-        property int value
-        property int defaultValue
-        signal edited(int value)
-
-        width: 200
-        height: 23
-
-        CheckBox {
-            height: 23
-            padding: 0
-            spacing: 4
-            text: qsTr("set a time(s)")
-            checked: sleepTime.value !== 0
-            onClicked: sleepTime.edited(checked ? sleepTime.defaultValue : 0)
-        }
-        SpinBox {
-            x: 115
-            width: 85
-            height: 23
-            from: 0
-            to: 9999
-            editable: true
-            value: sleepTime.value
-            onValueModified: sleepTime.edited(value)
-        }
-    }
-
-    Label {
-        x: 5
-        y: 5
-        text: qsTr("Settings")
-        font.pointSize: 16
-        font.bold: true
-    }
-
-    Heading {
-        x: 5
-        y: 45
-        text: qsTr("Report Rate")
-    }
-    RateButton {
-        x: 5
-        y: 75
-        text: "125Hz/8ms"
-        rate: 8
-    }
-    RateButton {
-        x: 130
-        y: 75
-        text: "250Hz/4ms"
-        rate: 4
-    }
-    RateButton {
-        x: 5
-        y: 110
-        text: "500Hz/2ms"
-        rate: 2
-    }
-    RateButton {
-        x: 130
-        y: 110
-        text: "1000Hz/1ms"
-        rate: 1
-    }
-
-    Heading {
-        x: 5
-        y: 160
-        text: qsTr("Set sleep mode")
-    }
-
-    Label {
-        x: 5
-        y: 190
-        text: qsTr("USB connection mode")
-    }
-    SleepTime {
-        x: 5
-        y: 220
-        value: settings.usbSleep
-        defaultValue: 300
-        onEdited: (value) => settings.usbSleep = value
-    }
-
-    Heading {
-        x: 5
-        y: 255
-        text: qsTr("Backlighting")
-    }
-    SleepTime {
-        x: 5
-        y: 285
-        value: settings.backlightSleep
-        defaultValue: 120
-        onEdited: (value) => settings.backlightSleep = value
-    }
-
-    Heading {
-        x: 5
-        y: 320
-        text: "2.4G/Bluetooth"
-    }
-    SleepTime {
-        x: 5
-        y: 350
-        value: settings.wirelessSleep
-        defaultValue: 180
-        onEdited: (value) => settings.wirelessSleep = value
-    }
-
-    Button {
-        x: 5
-        y: 400
-        // grows for longer translations
-        width: Math.max(120, implicitWidth)
-        height: 25
-        text: qsTr("Restore Keyboard")
-        font.pointSize: 10
-        onClicked: settings.resetKeyboard()
-    }
-
-    // regional variant of the layout: the keyboard does not report it
-    Heading {
-        x: 5
-        y: 445
-        visible: regionCombo.visible
-        text: qsTr("Keyboard layout")
-    }
-    ComboBox {
-        id: regionCombo
-        x: 5
-        y: 475
-        width: 200
-        height: 25
-        visible: count > 0
-        model: DeviceManager.keyboardRegions
-        textRole: "text"
-        valueRole: "value"
-        onActivated: DeviceManager.keyboardRegion = currentValue
-        Component.onCompleted: currentIndex = Math.max(0, indexOfValue(DeviceManager.keyboardRegion))
-    }
-
-    Heading {
-        id: windowHeading
-        x: 5
-        y: regionCombo.visible ? 520 : 445
-        text: qsTr("Window")
-    }
-    CheckBox {
-        id: trayCheckBox
-        x: 5
-        y: windowHeading.y + 30
-        height: 23
-        padding: 0
-        spacing: 4
-        enabled: SystemTray.available
-        text: qsTr("Close to the system tray")
-        checked: DeviceManager.closeToTray
-        onClicked: DeviceManager.closeToTray = checked
-    }
-    Label {
-        x: 5
-        y: trayCheckBox.y + 26
-        width: 250
-        visible: !SystemTray.available
-        wrapMode: Text.WordWrap
-        font.pointSize: 10
-        opacity: 0.7
-        text: qsTr("The desktop does not show tray icons.")
     }
 
     KeyboardModel {
         id: keyboardModel
     }
 
-    KeyboardView {
-        x: 340
-        y: 160
-        keyboard: keyboardModel
+    // name and description on the left, control on the right
+    component OptionRow: RowLayout {
+        property alias text: optionLabel.text
+        property alias description: descriptionLabel.text
+
+        Layout.fillWidth: true
+        spacing: 16
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 0
+            Label {
+                id: optionLabel
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.pointSize: 10
+                color: Theme.text
+            }
+            Label {
+                id: descriptionLabel
+                visible: text !== ""
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.pointSize: 9
+                color: Theme.textMuted
+            }
+        }
+    }
+
+    // sleep time in s, 0 = never; the switch turns on the default time
+    component SleepTime: OptionRow {
+        id: sleepTime
+
+        property int value
+        property int defaultValue
+        signal edited(int value)
+
+        SpinBox {
+            enabled: sleepTime.value !== 0
+            opacity: enabled ? 1 : 0.5
+            from: 1
+            to: 9999
+            editable: true
+            value: sleepTime.value !== 0 ? sleepTime.value : sleepTime.defaultValue
+            textFromValue: (value, locale) => value + " s"
+            valueFromText: (text, locale) => parseInt(text) || sleepTime.defaultValue
+            onValueModified: sleepTime.edited(value)
+        }
+        Switch {
+            checked: sleepTime.value !== 0
+            onToggled: sleepTime.edited(checked ? sleepTime.defaultValue : 0)
+        }
+    }
+
+    ScrollView {
+        id: scrollView
+        anchors.fill: parent
+        contentWidth: availableWidth
+
+        ColumnLayout {
+            width: Math.min(scrollView.availableWidth - 2 * Theme.pageMargin, Theme.maximumContentWidth)
+            x: (scrollView.availableWidth - width) / 2
+            spacing: Theme.spacing
+
+            Item {
+                Layout.preferredHeight: Theme.pageMargin - Theme.spacing
+            }
+
+            PageHeader {
+                Layout.fillWidth: true
+                title: qsTr("Settings")
+                subtitle: qsTr("Keyboard options of the current profile, and how the program behaves.")
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: Theme.spacing
+                rowSpacing: Theme.spacing
+
+                Card {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    // settings of the current profile
+                    enabled: DeviceManager.currentProfile > 0
+                    title: qsTr("Report Rate")
+                    subtitle: qsTr("How often the keyboard reports key presses to the computer.")
+
+                    // report interval in ms
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Repeater {
+                            model: [8, 4, 2, 1]
+
+                            delegate: Chip {
+                                required property int modelData
+
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 1
+                                text: (1000 / modelData) + " Hz"
+                                checked: settings.reportRate === modelData
+                                onClicked: settings.reportRate = modelData
+
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("%1 ms").arg(modelData)
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    // settings of the current profile
+                    enabled: DeviceManager.currentProfile > 0
+                    title: qsTr("Set sleep mode")
+                    subtitle: qsTr("Time without typing before the keyboard goes to sleep.")
+
+                    SleepTime {
+                        text: qsTr("USB connection mode")
+                        value: settings.usbSleep
+                        defaultValue: 300
+                        onEdited: (value) => settings.usbSleep = value
+                    }
+                    SleepTime {
+                        text: qsTr("Backlighting")
+                        value: settings.backlightSleep
+                        defaultValue: 120
+                        onEdited: (value) => settings.backlightSleep = value
+                    }
+                    SleepTime {
+                        text: "2.4G/Bluetooth"
+                        value: settings.wirelessSleep
+                        defaultValue: 180
+                        onEdited: (value) => settings.wirelessSleep = value
+                    }
+                }
+
+                Card {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    title: qsTr("Keyboard layout")
+                    subtitle: regionCombo.visible ? qsTr("The keyboard does not report its regional variant, choose it here.")
+                                                  : ""
+
+                    // regional variant of the layout: the keyboard does not report it
+                    ComboBox {
+                        id: regionCombo
+                        visible: count > 0
+                        Layout.fillWidth: true
+                        model: DeviceManager.keyboardRegions
+                        textRole: "text"
+                        valueRole: "value"
+                        onActivated: DeviceManager.keyboardRegion = currentValue
+                        Component.onCompleted: currentIndex = Math.max(0, indexOfValue(DeviceManager.keyboardRegion))
+                    }
+
+                    KeyboardStage {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 180
+                        keyboard: keyboardModel
+                        maximumScale: 1
+                    }
+                }
+
+                Card {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    title: qsTr("Application")
+
+                    OptionRow {
+                        text: qsTr("Appearance")
+
+                        ComboBox {
+                            Layout.preferredWidth: 160
+                            model: [qsTr("System"), qsTr("Light"), qsTr("Dark")]
+                            currentIndex: Theme.appearance
+                            onActivated: (index) => Theme.appearance = index
+                        }
+                    }
+
+                    OptionRow {
+                        text: qsTr("Close to the system tray")
+                        description: SystemTray.available ? qsTr("Closing the window keeps the program running in the tray.")
+                                                          : qsTr("The desktop does not show tray icons.")
+
+                        Switch {
+                            enabled: SystemTray.available
+                            checked: DeviceManager.closeToTray
+                            onToggled: DeviceManager.closeToTray = checked
+                        }
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+
+            Card {
+                Layout.fillWidth: true
+                title: qsTr("Restore Keyboard")
+                subtitle: qsTr("Reset the keyboard to its factory settings.")
+
+                actions: Button {
+                    text: qsTr("Restore…")
+                    Material.foreground: Theme.danger
+                    onClicked: restoreDialog.open()
+                }
+            }
+
+            Item {
+                Layout.preferredHeight: Theme.pageMargin - Theme.spacing
+            }
+        }
+    }
+
+    MessageBox {
+        id: restoreDialog
+        title: qsTr("Restore Keyboard")
+        text: qsTr("Reset the keyboard to its factory settings?")
+        destructive: true
+        onAccepted: settings.resetKeyboard()
     }
 }

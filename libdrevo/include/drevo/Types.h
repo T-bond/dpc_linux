@@ -39,11 +39,20 @@ enum class ConnectionState
     Connected,
     NotFound,       // no supported keyboard is plugged in
     NoAccess,       // cannot open the device (udev rule missing)
-    Busy,           // interface claimed by another program
-    DetachFailed,   // kernel driver could not be detached
-    ClaimFailed,    // interface could not be claimed
+    OpenFailed,     // the device could not be opened for another reason
+    ReceiverOnly,   // only a 2.4G receiver is plugged in, keyboards are programmed over USB only
 };
 Q_ENUM_NS(ConnectionState)
+
+// hardware profile of the keyboard, switched on the keyboard with Fn+Ctrl+F1..F3; each one stores its
+// own key and knob assignments
+enum class HardwareProfile : quint8
+{
+    G1 = 0,
+    G2 = 1,
+    G3 = 2,
+};
+Q_ENUM_NS(HardwareProfile)
 
 // actions of the knob, programmed like keys
 enum class KnobAction
@@ -70,15 +79,18 @@ enum class Modifier : quint8
 };
 Q_ENUM_NS(Modifier)
 
-// mouse functions a key can send (keyboard codes)
+// mouse functions a key can send (keyboard codes, checked on the keyboard).
+// The wheel code scrolls up when pressed and down when released, so each scroll direction sends
+// only one of them; ScrollDown is not a keyboard code, it is sent as the release of ScrollUp.
 enum class MouseAction : quint8
 {
     LeftClick   = 0xA5,
     RightClick  = 0xA6,
     MiddleClick = 0xA7,
-    Scroll      = 0xA8,
+    ScrollUp    = 0xA8,
     Button4     = 0xA9,
     Button5     = 0xAA,
+    ScrollDown  = 0xB8,
 };
 Q_ENUM_NS(MouseAction)
 

@@ -1,8 +1,10 @@
 // Keyboard HID packet encoders.
 //
 // Clean-room reimplementation of the former prebuilt lib/libhidkeyboard.a
-// (keyboarddata.o, GCC 7.4 / Qt 5.9). Every encoder produces byte-identical
-// output to the original, including a few quirks that are marked "quirk" below.
+// (keyboarddata.o, GCC 7.4 / Qt 5.9). The encoders produce byte-identical output to the
+// original, including a few quirks that are marked "quirk" below, except where it was fixed after
+// checking on the keyboard: combo keys with only the second modifier, the play count of macros,
+// media functions and scrolling (see the tests).
 //
 // Packet formats (sent as 8-byte HID feature reports, see UsbTransport):
 //
@@ -25,6 +27,7 @@
 
 #include "Protocol.h"
 
+#include <algorithm>
 #include <cstring>
 
 Q_LOGGING_CATEGORY(lcPackets, "drevo.packets", QtInfoMsg)
@@ -99,16 +102,19 @@ int lookupKeyIndex(const KeyIndexEntry (&table)[N], int key_value)
     return -1;
 }
 
-// keys stored per profile in flash
-int keysPerProfile(Layout layout)
+// entries of a layout table
+template <size_t N>
+QList<int> tableKeyValues(const KeyIndexEntry (&table)[N])
 {
-    switch (layout)
-    {
-    case Layout::Iso88: return int(std::size(kLayout88));
-    case Layout::Jis91: return int(std::size(kLayout91));
-    case Layout::Tkl87: break;
-    }
-    return int(std::size(kLayout87));
+    QList<KeyIndexEntry> entries(std::begin(table), std::end(table));
+    std::sort(entries.begin(), entries.end(), [](const KeyIndexEntry &a, const KeyIndexEntry &b) {
+        return a.index < b.index;
+    });
+    QList<int> values;
+    values.reserve(entries.size());
+    for (const KeyIndexEntry &entry : entries)
+        values.append(entry.key_value);
+    return values;
 }
 
 // Encode a macro delay as one byte:
@@ -151,14 +157,14 @@ quint8 delayTime(int prev_type, int delay_ms)
 }
 
 // Key packet with its header and key flash address:
-// (slot * keys_per_profile + key_index) * 16, as a big-endian 16-bit value.
-std::optional<KeyPacket> keyPacket(Key key, Layout layout, Slot slot)
+// (profile * keys_per_profile + key_index) * 16, as a big-endian 16-bit value.
+std::optional<KeyPacket> keyPacket(Key key, Layout layout, HardwareProfile profile)
 {
     int index = keyIndex(key.value(), layout);
     if (index < 0)
         return std::nullopt;
 
-    int address = int(slot) * keysPerProfile(layout) + index;
+    int address = int(profile) * keysPerProfile(layout) + index;
 
     KeyPacket packet {};
     packet[0] = 0xFF;
@@ -178,9 +184,14 @@ void writeRemap(KeyPacket &packet, quint8 target)
     packet[8] = 0x00;
 }
 
-// combo key: press/release events, 0x01 = press, 0x81 = release
+// combo key: play count 1, then each event followed by its delay byte (0x01 = press, 0x81 = release,
+// see delayTime())
 void writeCombo(KeyPacket &packet, quint8 modifier1, quint8 modifier2, quint8 target)
 {
+    // only the second modifier: the same as only the first one
+    if (modifier1 == 0)
+        std::swap(modifier1, modifier2);
+
     packet[4] = 0x01;
     if (modifier1 == 0 && modifier2 == 0)
     {
@@ -191,7 +202,6 @@ void writeCombo(KeyPacket &packet, quint8 modifier1, quint8 modifier2, quint8 ta
     }
     else if (modifier1 != 0 && modifier2 == 0)
     {
-        // quirk: the target is pressed twice and never released
         packet[5]  = modifier1;
         packet[6]  = 0x01;
         packet[7]  = target;
@@ -216,7 +226,14 @@ void writeCombo(KeyPacket &packet, quint8 modifier1, quint8 modifier2, quint8 ta
         packet[15] = modifier2;
         packet[16] = 0x81;
     }
-    // quirk: only the second modifier set writes no events
+}
+
+// one wheel step: only the press (up) or only the release (down) of the wheel code
+void writeWheel(KeyPacket &packet, bool up)
+{
+    packet[4] = 0x01;
+    packet[5] = quint8(MouseAction::ScrollUp);
+    packet[6] = up ? 0x01 : 0x81;
 }
 
 void setLed(LedPacket &packet, int offset, Rgb color)
@@ -333,9 +350,31 @@ bool isKnownKey(int key_value)
         || keyIndex(key_value, Layout::Jis91) >= 0;
 }
 
-std::optional<KeyPacket> encodeKeyAction(Key key, const KeyAction &action, Layout layout, Slot slot)
+QList<int> keyValues(Layout layout)
 {
-    std::optional<KeyPacket> packet = keyPacket(key, layout, slot);
+    switch (layout)
+    {
+    case Layout::Iso88: return tableKeyValues(kLayout88);
+    case Layout::Jis91: return tableKeyValues(kLayout91);
+    case Layout::Tkl87: break;
+    }
+    return tableKeyValues(kLayout87);
+}
+
+int keysPerProfile(Layout layout)
+{
+    switch (layout)
+    {
+    case Layout::Iso88: return int(std::size(kLayout88));
+    case Layout::Jis91: return int(std::size(kLayout91));
+    case Layout::Tkl87: break;
+    }
+    return int(std::size(kLayout87));
+}
+
+std::optional<KeyPacket> encodeKeyAction(Key key, const KeyAction &action, Layout layout, HardwareProfile profile)
+{
+    std::optional<KeyPacket> packet = keyPacket(key, layout, profile);
     if (!packet)
         return std::nullopt;
 
@@ -354,25 +393,39 @@ std::optional<KeyPacket> encodeKeyAction(Key key, const KeyAction &action, Layou
             else
                 writeCombo(packet, quint8(combo.first), quint8(combo.second), combo.target.value());
         }
-        void operator()(MouseAction mouse) { writeCombo(packet, 0, 0, quint8(mouse)); }
-        void operator()(MediaAction media) { writeRemap(packet, quint8(media)); }
+        void operator()(MouseAction mouse)
+        {
+            if (mouse == MouseAction::ScrollUp || mouse == MouseAction::ScrollDown)
+                writeWheel(packet, mouse == MouseAction::ScrollUp);
+            else
+                writeCombo(packet, 0, 0, quint8(mouse));
+        }
+        void operator()(MediaAction media)
+        {
+            // the knob ignores remaps, it plays media functions as press/release events (checked on the keyboard)
+            if (key.isKnob())
+                writeCombo(packet, 0, 0, quint8(media));
+            else
+                writeRemap(packet, quint8(media));
+        }
     };
     std::visit(Visitor { *packet, key }, action);
     return packet;
 }
 
 // macro: a sequence of event bytes, each press/release followed by a delay byte
-std::optional<KeyPacket> encodeMacro(Key key, int play_times, const QList<MacroStep> &steps, Layout layout, Slot slot)
+std::optional<KeyPacket> encodeMacro(Key key, int play_times, const QList<MacroStep> &steps, Layout layout,
+                                     HardwareProfile profile)
 {
-    std::optional<KeyPacket> packet = keyPacket(key, layout, slot);
+    std::optional<KeyPacket> packet = keyPacket(key, layout, profile);
     if (!packet)
         return std::nullopt;
     KeyPacket &data = *packet;
 
-    // quirk: overwritten by the first event when the macro is not empty
+    // play count, then the events like in combo keys
     data[4] = quint8(play_times);
 
-    int pos = 4;
+    int pos = 5;
     int prev_type = 0;          // 0: press, 1: release
     bool need_delay = false;    // last event has no delay byte yet
 

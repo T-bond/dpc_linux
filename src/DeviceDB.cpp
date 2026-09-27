@@ -26,7 +26,20 @@ QString profileGroup(int profile)
 }
 
 const char *kProfilePrefix = "profile";
+// selected profile of a configuration from before hardware profiles
 const char *kSelectedProfile = "selected_profile";
+const char *kSelectedHardwareProfile = "hardware/selected";
+
+// settings group of a hardware profile (0..2)
+QString hardwareGroup(int hardware_profile)
+{
+    return QString("hardware/g%1").arg(hardware_profile + 1);
+}
+
+bool validHardwareProfile(int hardware_profile)
+{
+    return hardware_profile >= 0 && hardware_profile < kHardwareProfileCount;
+}
 
 // settings of a light mode, empty for an unknown mode
 QString lightGroup(int profile, int mode)
@@ -84,6 +97,30 @@ DeviceDB::DeviceDB()
         initConfigData(1);
         writeRadiData(1);
     }
+    if (!m_settings.contains(kSelectedHardwareProfile))
+        migrateHardwareProfiles();
+}
+
+// Before hardware profiles, every profile used G1 and the selected one was written to it: they all
+// belong to G1 now, which holds the selected profile. G2 and G3 were never written by the
+// application, their keys are not known.
+void DeviceDB::migrateHardwareProfiles()
+{
+    const QVector<int> ids = profiles();
+    int selected = m_settings.value(kSelectedProfile, 1).toInt();
+    if (!ids.contains(selected))
+        selected = ids.isEmpty() ? -1 : ids.first();
+    m_settings.remove(kSelectedProfile);
+
+    m_settings.setValue(kSelectedHardwareProfile, 1);
+    for (int hardware_profile = 0; hardware_profile < kHardwareProfileCount; hardware_profile++)
+        setHardwareProfileContent(hardware_profile, KeyMap(), false, QString());
+    if (selected > 0)
+    {
+        setHardwareProfileContent(0, profileKeys(selected), true, profileName(selected));
+        setHardwareProfileProfile(0, selected);
+    }
+    store();
 }
 
 DeviceDB::~DeviceDB()
@@ -182,15 +219,135 @@ bool DeviceDB::removeProfile(int profile)
     return store();
 }
 
-// profile selected when the program was closed
-int DeviceDB::selectedProfile() const
+// key assignments of a profile
+KeyMap DeviceDB::profileKeys(int profile) const
 {
-    return m_settings.value(kSelectedProfile, 1).toInt();
+    const QString group = profileGroup(profile) + "/keys";
+    m_settings.beginGroup(group);
+    const QStringList key_values = m_settings.childGroups();
+    m_settings.endGroup();
+
+    KeyMap keys;
+    for (const QString &key_value : key_values)
+    {
+        KeyData data = {};
+        if (readKey(group + "/" + key_value, data))
+        {
+            data.profile = profile;
+            data.key_value = key_value.toInt();
+            keys.insert(data.key_value, data);
+        }
+    }
+    return keys;
 }
 
-bool DeviceDB::setSelectedProfile(int profile)
+// hardware profile (0..2) a profile belongs to
+int DeviceDB::profileHardwareProfile(int profile) const
 {
-    m_settings.setValue(kSelectedProfile, profile);
+    const int hardware_profile = m_settings.value(profileGroup(profile) + "/hardware_profile", 1).toInt() - 1;
+    return validHardwareProfile(hardware_profile) ? hardware_profile : 0;
+}
+
+bool DeviceDB::setProfileHardwareProfile(int profile, int hardware_profile)
+{
+    if (!validHardwareProfile(hardware_profile))
+        return false;
+    m_settings.setValue(profileGroup(profile) + "/hardware_profile", hardware_profile + 1);
+    return store();
+}
+
+// hardware profile shown in the application
+int DeviceDB::selectedHardwareProfile() const
+{
+    const int hardware_profile = m_settings.value(kSelectedHardwareProfile, 1).toInt() - 1;
+    return validHardwareProfile(hardware_profile) ? hardware_profile : 0;
+}
+
+bool DeviceDB::setSelectedHardwareProfile(int hardware_profile)
+{
+    if (!validHardwareProfile(hardware_profile))
+        return false;
+    m_settings.setValue(kSelectedHardwareProfile, hardware_profile + 1);
+    return store();
+}
+
+// profile last written to a hardware profile, -1 if none
+int DeviceDB::hardwareProfileProfile(int hardware_profile) const
+{
+    bool ok = false;
+    const int profile = m_settings.value(hardwareGroup(hardware_profile) + "/profile").toInt(&ok);
+    return ok && profile > 0 && profiles().contains(profile) ? profile : -1;
+}
+
+bool DeviceDB::setHardwareProfileProfile(int hardware_profile, int profile)
+{
+    if (!validHardwareProfile(hardware_profile))
+        return false;
+    const QString setting = hardwareGroup(hardware_profile) + "/profile";
+    if (profile > 0)
+        m_settings.setValue(setting, profile);
+    else
+        m_settings.remove(setting);
+    return store();
+}
+
+// key assignments last written to a hardware profile
+KeyMap DeviceDB::hardwareProfileKeys(int hardware_profile) const
+{
+    const QString group = hardwareGroup(hardware_profile) + "/keys";
+    m_settings.beginGroup(group);
+    const QStringList key_values = m_settings.childGroups();
+    m_settings.endGroup();
+
+    KeyMap keys;
+    for (const QString &key_value : key_values)
+    {
+        KeyData data = {};
+        if (readKey(group + "/" + key_value, data))
+        {
+            data.profile = -1;
+            data.key_value = key_value.toInt();
+            keys.insert(data.key_value, data);
+        }
+    }
+    return keys;
+}
+
+bool DeviceDB::hardwareProfileKnown(int hardware_profile) const
+{
+    return m_settings.value(hardwareGroup(hardware_profile) + "/known", false).toBool();
+}
+
+QString DeviceDB::hardwareProfileName(int hardware_profile) const
+{
+    return m_settings.value(hardwareGroup(hardware_profile) + "/name").toString();
+}
+
+bool DeviceDB::setHardwareProfileContent(int hardware_profile, const KeyMap &keys, bool known, const QString &name)
+{
+    if (!validHardwareProfile(hardware_profile))
+        return false;
+    const QString group = hardwareGroup(hardware_profile);
+    m_settings.remove(group + "/keys");
+    for (const KeyData &data : keys)
+        writeKey(QString("%1/keys/%2").arg(group).arg(data.key_value), data);
+    m_settings.setValue(group + "/known", known);
+    m_settings.setValue(group + "/name", name);
+    return store();
+}
+
+// set one key of what the keyboard stores (default = remove it)
+bool DeviceDB::setHardwareProfileKey(int hardware_profile, int key_value, const KeyData *data, bool known)
+{
+    if (!validHardwareProfile(hardware_profile))
+        return false;
+    const QString group = hardwareGroup(hardware_profile);
+    const QString key_group = QString("%1/keys/%2").arg(group).arg(key_value);
+    m_settings.remove(key_group);
+    if (data)
+        writeKey(key_group, *data);
+    if (!known)
+        m_settings.setValue(group + "/known", false);
     return store();
 }
 
@@ -357,23 +514,40 @@ bool DeviceDB::deleteKeyRGBData(int radi_id)
 // add key data (macro value 0 only removes the assignment)
 bool DeviceDB::addKeyProfile(KeyData &data)
 {
-    if (data.key_value <= 0)
+    if (data.key_value <= 0 || data.profile <= 0)
         return false ;
 
     QString group = keyGroup(data.profile, data.key_value);
     m_settings.remove(group);
 
     if (data.macro_value != 0)
-    {
-        m_settings.beginGroup(group);
-        m_settings.setValue("macro_type", data.macro_type);
-        m_settings.setValue("macro_value", data.macro_value);
-        m_settings.setValue("macro_value1", data.macro_value1);
-        m_settings.setValue("macro_value2", data.macro_value2);
-        m_settings.setValue("macro_name", data.macro_name);
-        m_settings.endGroup();
-    }
+        writeKey(group, data);
     return store();
+}
+
+void DeviceDB::writeKey(const QString &group, const KeyData &data)
+{
+    m_settings.beginGroup(group);
+    m_settings.setValue("macro_type", data.macro_type);
+    m_settings.setValue("macro_value", data.macro_value);
+    m_settings.setValue("macro_value1", data.macro_value1);
+    m_settings.setValue("macro_value2", data.macro_value2);
+    m_settings.setValue("macro_name", data.macro_name);
+    m_settings.endGroup();
+}
+
+bool DeviceDB::readKey(const QString &group, KeyData &data) const
+{
+    if (!m_settings.contains(group + "/macro_type"))
+        return false;
+
+    data.key_id       = 0;
+    data.macro_type   = m_settings.value(group + "/macro_type").toInt();
+    data.macro_value  = m_settings.value(group + "/macro_value").toInt();
+    data.macro_value1 = m_settings.value(group + "/macro_value1").toInt();
+    data.macro_value2 = m_settings.value(group + "/macro_value2").toInt();
+    data.macro_name   = m_settings.value(group + "/macro_name").toString();
+    return true;
 }
 
 // query key data
@@ -397,20 +571,10 @@ int DeviceDB::queryKeyProfileInfo(int profile, QVector<KeyData*> &vecdata, bool 
 // query key data  (key info)
 bool DeviceDB::queryKeyProfileInfo(int profile, int key_value, KeyData &data)
 {
-    QString group = keyGroup(profile, key_value);
-    if (!m_settings.contains(group + "/macro_type"))
+    if (!readKey(keyGroup(profile, key_value), data))
         return false;
-
-    m_settings.beginGroup(group);
-    data.key_id       = 0;
-    data.profile      = profile;
-    data.key_value    = key_value;
-    data.macro_type   = m_settings.value("macro_type").toInt();
-    data.macro_value  = m_settings.value("macro_value").toInt();
-    data.macro_value1 = m_settings.value("macro_value1").toInt();
-    data.macro_value2 = m_settings.value("macro_value2").toInt();
-    data.macro_name   = m_settings.value("macro_name").toString();
-    m_settings.endGroup();
+    data.profile   = profile;
+    data.key_value = key_value;
     return true;
 }
 

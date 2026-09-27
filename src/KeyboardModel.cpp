@@ -47,6 +47,7 @@ QVariant KeyboardModel::data(const QModelIndex &index, int role) const
     case KeyColorRole:      return key.key_color;
     case KeyCheckedRole:    return key.key_check;
     case KeySideLedRole:    return sideLedFromValue(key.key_value).has_value();
+    case KeyLowerRectRole:  return key.key_lower_rect;
     default:                return QVariant();
     }
 }
@@ -63,6 +64,7 @@ QHash<int, QByteArray> KeyboardModel::roleNames() const
         { KeyColorRole,     "keyColor" },
         { KeyCheckedRole,   "keyChecked" },
         { KeySideLedRole,   "keySideLed" },
+        { KeyLowerRectRole, "keyLowerRect" },
     };
 }
 
@@ -75,7 +77,7 @@ int KeyboardModel::indexAt(qreal x, qreal y, bool side_leds) const
     {
         if (!side_leds && sideLedFromValue(m_keys.at(i).key_value))
             continue;
-        if (m_keys.at(i).key_rect.contains(pos))
+        if (m_keys.at(i).key_rect.contains(pos) || m_keys.at(i).key_lower_rect.contains(pos))
             return i;
     }
     return -1;
@@ -140,6 +142,35 @@ void KeyboardModel::setCheck(int index, bool key_check)
 bool KeyboardModel::isChecked(int index) const
 {
     return index >= 0 && index < m_keys.size() && m_keys.at(index).key_check;
+}
+
+QList<int> KeyboardModel::checkedIndexes() const
+{
+    QList<int> indexes;
+    for (int i = 0; i < m_keys.size(); i++)
+    {
+        if (m_keys.at(i).key_check)
+            indexes.append(i);
+    }
+    return indexes;
+}
+
+void KeyboardModel::checkInRect(const QRectF &rect, const QList<int> &base, bool side_leds)
+{
+    const QRectF band = rect.normalized();
+    for (int i = 0; i < m_keys.size(); i++)
+    {
+        const KeyboardKey &key = m_keys.at(i);
+        const bool touched = (side_leds || !sideLedFromValue(key.key_value))
+                          && (band.intersects(key.key_rect) || (!key.key_lower_rect.isEmpty() && band.intersects(key.key_lower_rect)));
+        const bool check = touched || base.contains(i);
+        if (key.key_check != check)
+        {
+            m_keys[i].key_check = check;
+            QModelIndex changed = index(i);
+            emit dataChanged(changed, changed, { KeyCheckedRole });
+        }
+    }
 }
 
 // key values of the LEDs of a side light bar (drevo::LightBar value)

@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
+import QtQuick.Layouts
 import DrevoPowerConsole
 
 // profile selection and management
@@ -41,6 +41,13 @@ Item {
         return copy
     }
 
+    readonly property bool hasProfile: DeviceManager.currentProfile > 0
+
+    // new profile in the shown hardware profile
+    function newProfile() {
+        nameDialog.openFor("new", root.unusedName())
+    }
+
     readonly property string currentName: {
         for (const profile of DeviceManager.profiles) {
             if (profile.id === DeviceManager.currentProfile)
@@ -52,18 +59,20 @@ Item {
     implicitWidth: row.implicitWidth
     implicitHeight: row.implicitHeight
 
-    Row {
+    RowLayout {
         id: row
+        anchors.fill: parent
         spacing: 4
 
         ComboBox {
             id: profileCombo
-            // with the menu button, as wide as the sidebar
-            width: 266
-            height: 28
-            model: DeviceManager.profiles
+            Layout.fillWidth: true
+            Layout.minimumWidth: 80
+            // the profiles of the shown hardware profile
+            model: DeviceManager.hardwareProfileProfiles
             textRole: "name"
             valueRole: "id"
+            displayText: currentIndex < 0 ? qsTr("No profile") : currentText
             onActivated: DeviceManager.currentProfile = currentValue
 
             function showCurrentProfile() {
@@ -81,11 +90,10 @@ Item {
             }
         }
 
-        Button {
+        ToolButton {
             id: menuButton
-            width: 28
-            height: 28
             text: "⋯"
+            font.pointSize: 14
             onClicked: profileMenu.open()
 
             ToolTip.visible: hovered
@@ -97,19 +105,40 @@ Item {
 
                 MenuItem {
                     text: qsTr("New profile…")
-                    onTriggered: nameDialog.openFor("new", root.unusedName())
+                    onTriggered: root.newProfile()
                 }
                 MenuItem {
                     text: qsTr("Duplicate…")
+                    enabled: root.hasProfile
                     onTriggered: nameDialog.openFor("duplicate", root.copyName(root.currentName))
                 }
                 MenuItem {
                     text: qsTr("Rename…")
+                    enabled: root.hasProfile
                     onTriggered: nameDialog.openFor("rename", root.currentName)
                 }
+                // writes it to the other hardware profile, the current one keeps its keys
+                Menu {
+                    title: qsTr("Move to")
+                    enabled: root.hasProfile
+
+                    Repeater {
+                        model: DeviceManager.hardwareProfiles
+
+                        delegate: MenuItem {
+                            required property var modelData
+                            required property int index
+
+                            text: modelData.name
+                            enabled: index !== DeviceManager.hardwareProfile
+                            onTriggered: DeviceManager.moveProfile(DeviceManager.currentProfile, index)
+                        }
+                    }
+                }
+                MenuSeparator {}
                 MenuItem {
                     text: qsTr("Delete")
-                    enabled: DeviceManager.profiles.length > 1
+                    enabled: root.hasProfile && DeviceManager.profiles.length > 1
                     onTriggered: deleteDialog.open()
                 }
             }
@@ -161,6 +190,7 @@ Item {
         footer: DialogButtonBox {
             Button {
                 text: nameDialog.action === "rename" ? qsTr("Rename") : qsTr("Create")
+                highlighted: true
                 enabled: nameField.text.trim() !== ""
                 DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
             }
@@ -173,15 +203,12 @@ Item {
         }
     }
 
-    MessageDialog {
+    MessageBox {
         id: deleteDialog
         title: qsTr("Delete profile")
         text: qsTr("Delete the profile “%1”?").arg(root.currentName)
         informativeText: qsTr("Its key assignments, lighting and settings are removed.")
-        buttons: MessageDialog.Yes | MessageDialog.No
-        onButtonClicked: (button) => {
-            if (button === MessageDialog.Yes)
-                DeviceManager.removeProfile(DeviceManager.currentProfile)
-        }
+        destructive: true
+        onAccepted: DeviceManager.removeProfile(DeviceManager.currentProfile)
     }
 }

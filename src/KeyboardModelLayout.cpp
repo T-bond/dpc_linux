@@ -129,6 +129,8 @@ void KeyboardModel::initKeyboardKey()
     rcItem.setCoords(xpos,ypos, xpos+key_width, ypos+key_height);
     addKeyItem(("PG UP"), 0x4B, rcItem);
     // TAB
+    // the Enter of the 88 and 91 key layouts reaches down into the CAPS row, see below
+    int iso_enter = -1;
     xpos = 21;
     ypos += key_height;
     rcItem.setCoords(xpos,ypos, xpos+52, ypos+key_height);
@@ -173,7 +175,7 @@ void KeyboardModel::initKeyboardKey()
         addKeyItem(("]"),  0x30, rcItem);
         xpos += (key_width+2);
         rcItem.setCoords(xpos,ypos, xpos+52, ypos+key_height);
-        addKeyItem(("ENTER"), 0x28, rcItem);
+        iso_enter = addKeyItem(("ENTER"), 0x28, rcItem);
     }
     else if (m_kbimagetype == DT_KB_PRO_91 || m_kbimagetype == DT_KB_TE_91)
     {
@@ -184,7 +186,7 @@ void KeyboardModel::initKeyboardKey()
         addKeyItem(("["),  0x30, rcItem);
         xpos += (key_width+2);
         rcItem.setCoords(xpos,ypos, xpos+52, ypos+key_height);
-        addKeyItem(("ENTER"), 0x28, rcItem);
+        iso_enter = addKeyItem(("ENTER"), 0x28, rcItem);
     }
     else
     {
@@ -272,6 +274,13 @@ void KeyboardModel::initKeyboardKey()
         xpos += (key_width+1);
         rcItem.setCoords(xpos,ypos, xpos+key_width, ypos+key_height);
         addKeyItem(("\\|"), 0x31, rcItem);
+    }
+    // lower part of the Enter: right of the last key of the row (xpos is its left edge) up to the right
+    // edge of the upper part
+    if (iso_enter >= 0)
+    {
+        const QRect &enter = m_keys.at(iso_enter).key_rect;
+        m_keys[iso_enter].key_lower_rect.setCoords(xpos+key_width+4, enter.bottom()+1, enter.right(), ypos+key_height);
     }
     // shift
     xpos = 21;

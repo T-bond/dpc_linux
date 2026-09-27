@@ -21,8 +21,9 @@ SystemTray::SystemTray(QObject *parent)
 
     m_menu = new QMenu();
     m_profile_menu = m_menu->addMenu(tr("Profile"));
+    // not exclusive: each hardware profile has its own profile
     m_profile_group = new QActionGroup(this);
-    m_profile_group->setExclusive(true);
+    m_profile_group->setExclusionPolicy(QActionGroup::ExclusionPolicy::None);
 
     m_lights_off = m_menu->addAction(tr("Lights off"));
     m_lights_off->setCheckable(true);
@@ -38,6 +39,9 @@ SystemTray::SystemTray(QObject *parent)
     m_tray = new QSystemTrayIcon(QIcon(":/image/drevo-power-console.png"), this);
     m_tray->setToolTip(device->deviceName());
     m_tray->setContextMenu(m_menu);
+    connect(device, &DeviceManager::connectionChanged, this, [this, device]() {
+        m_tray->setToolTip(device->deviceName());
+    });
     connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick)
             emit showWindowRequested();
@@ -45,6 +49,7 @@ SystemTray::SystemTray(QObject *parent)
 
     connect(device, &DeviceManager::profilesChanged, this, &SystemTray::updateProfiles);
     connect(device, &DeviceManager::currentProfileChanged, this, &SystemTray::updateProfiles);
+    connect(device, &DeviceManager::hardwareProfilesChanged, this, &SystemTray::updateProfiles);
     connect(device, &DeviceManager::closeToTrayChanged, this, &SystemTray::updateVisible);
     updateProfiles();
     updateVisible();
@@ -77,22 +82,29 @@ void SystemTray::updateProfiles()
 {
     DeviceManager *device = DeviceManager::instance();
 
-    for (QAction *action : m_profile_group->actions())
-    {
-        m_profile_group->removeAction(action);
-        m_profile_menu->removeAction(action);
-        delete action;
-    }
+    // deletes the actions, which leaves the group empty
+    m_profile_menu->clear();
 
-    for (const QVariant &profile : device->profiles())
+    // one section per hardware profile; the profile it has is checked
+    const QVariantList hardware_profiles = device->hardwareProfiles();
+    const QVariantList profiles = device->profiles();
+    for (int i = 0; i < hardware_profiles.size(); i++)
     {
-        const QVariantMap map = profile.toMap();
-        const int id = map.value("id").toInt();
+        const QVariantMap hardware_profile = hardware_profiles.at(i).toMap();
+        m_profile_menu->addSection(hardware_profile.value("name").toString());
 
-        QAction *action = m_profile_menu->addAction(map.value("name").toString());
-        action->setCheckable(true);
-        action->setChecked(id == device->currentProfile());
-        m_profile_group->addAction(action);
-        connect(action, &QAction::triggered, device, [device, id]() { device->setCurrentProfile(id); });
+        for (const QVariant &profile : profiles)
+        {
+            const QVariantMap map = profile.toMap();
+            if (map.value("hardwareProfile").toInt() != i)
+                continue;
+            const int id = map.value("id").toInt();
+
+            QAction *action = m_profile_menu->addAction(map.value("name").toString());
+            action->setCheckable(true);
+            action->setChecked(id == hardware_profile.value("profile").toInt());
+            m_profile_group->addAction(action);
+            connect(action, &QAction::triggered, device, [device, id]() { device->setCurrentProfile(id); });
+        }
     }
 }

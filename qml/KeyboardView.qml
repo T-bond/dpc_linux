@@ -45,12 +45,13 @@ Item {
     Repeater {
         model: root.mode === KeyboardModel.LightStatic ? null : root.keyboard
 
-        delegate: Rectangle {
+        delegate: KeyShape {
             required property int index
             required property int keyX
             required property int keyY
             required property int keyWidth
             required property int keyHeight
+            required property rect keyLowerRect
             required property color keyColor
             required property bool keySideLed
 
@@ -58,10 +59,11 @@ Item {
 
             // side LEDs are drawn over the image, see below
             visible: !keySideLed && (customLight ? keyColor.a > 0 : index === root.hoverIndex)
-            x: keyX + 1
-            y: keyY
-            width: keyWidth - 2
-            height: keyHeight - 6
+            keyRect: Qt.rect(keyX, keyY, keyWidth, keyHeight)
+            lowerRect: keyLowerRect
+            leftInset: 1
+            rightInset: 1
+            bottomInset: 6
             color: customLight ? keyColor : root.highlightColor
         }
     }
@@ -112,79 +114,155 @@ Item {
             required property int keyY
             required property int keyWidth
             required property int keyHeight
+            required property rect keyLowerRect
             required property bool keyChecked
 
             readonly property bool selected: root.mode === KeyboardModel.CustomKey && index === root.selectedIndex
+            readonly property rect keyRect: Qt.rect(keyX, keyY, keyWidth, keyHeight)
 
             // light selection
-            Rectangle {
+            KeyShape {
                 visible: root.mode === KeyboardModel.LightCustom && keyItem.keyChecked
-                x: keyItem.keyX - 1
-                y: keyItem.keyY - 1
-                width: keyItem.keyWidth + 2
-                height: keyItem.keyHeight + 2
-                color: "transparent"
-                border.color: root.highlightColor
-                border.width: 2
+                keyRect: keyItem.keyRect
+                lowerRect: keyItem.keyLowerRect
+                leftInset: -1
+                topInset: -1
+                rightInset: -1
+                bottomInset: -1
+                borderColor: root.highlightColor
+                borderWidth: 2
             }
 
             // assigned or selected key
-            Rectangle {
+            KeyShape {
                 visible: root.mode === KeyboardModel.CustomKey && (keyItem.selected || keyItem.keyChecked)
-                x: keyItem.keyX + 1
-                y: keyItem.keyY
-                width: keyItem.keyWidth - 2
-                height: keyItem.keyHeight - 2
+                keyRect: keyItem.keyRect
+                lowerRect: keyItem.keyLowerRect
+                leftInset: 1
+                rightInset: 1
+                bottomInset: 2
                 color: keyItem.keyChecked ? Qt.rgba(1, 225 / 255, 0, 150 / 255) : Qt.rgba(1, 1, 1, 150 / 255)
-
-                Rectangle {
-                    x: 1
-                    y: 2
-                    width: keyItem.keyWidth - 4
-                    height: keyItem.keyHeight - 4
-                    color: "transparent"
-                    border.color: root.frameColor
-                    border.width: 1
-                }
+            }
+            KeyShape {
+                visible: root.mode === KeyboardModel.CustomKey && (keyItem.selected || keyItem.keyChecked)
+                keyRect: keyItem.keyRect
+                lowerRect: keyItem.keyLowerRect
+                leftInset: 2
+                topInset: 2
+                rightInset: 2
+                bottomInset: 2
+                borderColor: root.frameColor
+                borderWidth: 1
             }
         }
     }
 
+    // rubber band of a drag selection in LightCustom mode
+    Rectangle {
+        id: band
+
+        property point start
+        property point end
+
+        visible: mouseArea.dragging
+        x: Math.min(start.x, end.x)
+        y: Math.min(start.y, end.y)
+        width: Math.abs(end.x - start.x)
+        height: Math.abs(end.y - start.y)
+        color: Qt.alpha(root.highlightColor, 0.18)
+        border.color: root.highlightColor
+        border.width: 1
+    }
+
     MouseArea {
         id: mouseArea
+
+        // a press in LightCustom mode: the key under it, and the keys checked before with Shift or Ctrl
+        property int pressIndex: -1
+        property bool merge: false
+        property var baseSelection: []
+        // the press moved far enough to be a drag selection
+        property bool dragging: false
 
         // includes the side LEDs around the image
         anchors.fill: parent
         anchors.margins: -root.barMargin
         enabled: root.mode !== KeyboardModel.LightStatic
         hoverEnabled: true
+        // a drag selects keys, it does not scroll the page
+        preventStealing: true
 
-        // key or side LED under the mouse, in the coordinates of the keyboard image
+        // position in the coordinates of the keyboard image
+        function imagePos(mouse) {
+            return mouseArea.mapToItem(root, mouse.x, mouse.y)
+        }
+        // key or side LED under the mouse
         function indexAt(mouse) {
-            const pos = mouseArea.mapToItem(root, mouse.x, mouse.y)
+            const pos = imagePos(mouse)
             return root.keyboard.indexAt(pos.x, pos.y, root.mode === KeyboardModel.LightCustom)
         }
 
-        onPositionChanged: (mouse) => root.hoverIndex = indexAt(mouse)
+        onPositionChanged: (mouse) => {
+            root.hoverIndex = indexAt(mouse)
+            if (!pressed || root.mode !== KeyboardModel.LightCustom)
+                return
+
+            band.end = imagePos(mouse)
+            if (!dragging && Math.hypot(band.end.x - band.start.x, band.end.y - band.start.y) >= Application.styleHints.startDragDistance)
+                dragging = true
+            // the keys the band touches, added to the previous selection with Shift or Ctrl
+            if (dragging)
+                root.keyboard.checkInRect(Qt.rect(band.x, band.y, band.width, band.height), baseSelection, true)
+        }
         onExited: root.hoverIndex = -1
 
         onPressed: (mouse) => {
             const index = indexAt(mouse)
             root.hoverIndex = index
-            if (index === -1)
+
+            if (root.mode === KeyboardModel.CustomKey) {
+                if (index !== -1) {
+                    root.selectedIndex = index
+                    root.keyPressed(index)
+                }
                 return
+            }
+
+            pressIndex = index
+            merge = (mouse.modifiers & (Qt.ShiftModifier | Qt.ControlModifier)) !== 0
+            baseSelection = merge ? root.keyboard.checkedIndexes() : []
+            band.start = imagePos(mouse)
+            band.end = band.start
+            dragging = false
+        }
+
+        // a click without dragging in LightCustom mode
+        onReleased: {
+            if (root.mode !== KeyboardModel.LightCustom)
+                return
+            if (dragging) {
+                dragging = false
+                return
+            }
+
+            const index = pressIndex
+            // an empty place clears the selection, unless Shift or Ctrl is held
+            if (index === -1) {
+                if (!merge)
+                    root.keyboard.setAllKeyCheck(false)
+                return
+            }
 
             root.selectedIndex = index
-            if (root.mode === KeyboardModel.CustomKey)
-                root.keyPressed(index)
             // clicking a checked key again unchecks it
-            else if (root.keyboard.isChecked(index))
+            if (root.keyboard.isChecked(index))
                 root.keyboard.setCheck(index, false)
             // Shift or Ctrl adds to the checked keys
-            else if (mouse.modifiers & (Qt.ShiftModifier | Qt.ControlModifier))
+            else if (merge)
                 root.keyboard.setCheck(index, true)
             else
                 root.keyboard.checkOnly(index)
         }
+        onCanceled: dragging = false
     }
 }

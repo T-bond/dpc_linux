@@ -15,7 +15,7 @@
 #include "DeviceManager.h"
 #include "SingleInstance.h"
 #include "SystemTray.h"
-#include "TabIconProvider.h"
+#include "IconProvider.h"
 
 int main(int argc, char *argv[])
 {
@@ -67,7 +67,10 @@ int main(int argc, char *argv[])
         QFontDatabase::addApplicationFont(font);
     app.setFont(QFont("Open Sans"));
 
-    QQuickStyle::setStyle("Fusion");
+    // Material with the compact desktop sizes; the colors are set in Theme.qml
+    QQuickStyle::setStyle("Material");
+    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_MATERIAL_VARIANT"))
+        qputenv("QT_QUICK_CONTROLS_MATERIAL_VARIANT", "Dense");
 
     // keyboard connection and database, used by the QML pages
     DeviceManager device_manager(nullptr);
@@ -75,7 +78,7 @@ int main(int argc, char *argv[])
     SystemTray system_tray(nullptr);
 
     QQmlApplicationEngine engine;
-    engine.addImageProvider("tabicon", new TabIconProvider);
+    engine.addImageProvider("icon", new IconProvider);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &app, []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("DrevoPowerConsole", "Main");

@@ -148,6 +148,10 @@ void Lighting::componentComplete()
 // select the light mode of the current profile
 void Lighting::loadProfile()
 {
+    // no current profile (its hardware profile shows none): the keyboard keeps its lighting
+    if (m_current_profile <= 0)
+        return;
+
     DeviceDB *dev_db = DeviceManager::instance()->db();
 
     int select_mode = dev_db->getSelectMode(m_current_profile);
@@ -191,6 +195,9 @@ bool Lighting::customMode() const
 // select the light mode at a list index
 void Lighting::selectModeIndex(int index)
 {
+    if (m_current_profile <= 0)
+        return;
+
     int light_mode = getLightModeByIndex(index);
 
     m_mode_index = index;
@@ -349,7 +356,7 @@ void Lighting::resetAllLeds()
 // set backlight mode
 void Lighting::setBackLightMode(int light_mode)
 {
-    if (m_current_mode == light_mode)
+    if (m_current_mode == light_mode || m_current_profile <= 0)
         return ;
 
     RadiData data;
@@ -392,6 +399,8 @@ void Lighting::setBackLightMode(int light_mode)
 // query the data of the current mode
 bool Lighting::currentRadiData(RadiData &data) const
 {
+    if (m_current_profile <= 0)
+        return false;
     return DeviceManager::instance()->db()->queryRadiInfo(m_current_profile, m_current_mode, data);
 }
 

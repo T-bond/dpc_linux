@@ -6,35 +6,61 @@
 
 #include <QList>
 
+#include <functional>
+#include <memory>
+#include <vector>
+
+class QSocketNotifier;
+
 struct libusb_context;
-struct libusb_device_handle;
+struct libusb_device;
 
 namespace drevo
 {
 
-// libusb access to the keyboard: enumeration and HID feature reports
+// access to the keyboard: enumeration and plugging with libusb, HID feature reports through the
+// kernel's hidraw device (the kernel driver stays attached, so media and mouse functions keep working)
 class UsbTransport
 {
 public:
     UsbTransport();
     ~UsbTransport();
 
-    // supported keyboards that are plugged in
-    QList<DeviceInfo> detect();
+    // devices of the list that are plugged in
+    QList<DeviceInfo> detect(const QList<DeviceInfo> &known);
 
-    // open and claim the interface of a keyboard
+    // call changed when a supported keyboard or its receiver is plugged in or removed, from the Qt event loop of
+    // this thread; false if the platform cannot report it
+    bool watch(std::function<void()> changed);
+
+    // open the hidraw device of the keyboard's programming interface
     ConnectionState open(const DeviceInfo &device);
     void close();
 
-    // send one 8-byte report
-    bool send(const Report &report);
+    // send one 8-byte report; what it does is logged after it
+    bool send(const Report &report, const QString &what);
     // send reports in order; true if all were sent
-    bool send(const QList<Report> &reports);
+    bool send(const QList<Report> &reports, const QString &what);
 
 private:
     libusb_context          *m_context;
-    libusb_device_handle    *m_handle;
-    int                     m_interface;
+    int                     m_fd;       // hidraw device, -1 if not open
+    // hotplug watching: libusb reports the events while its file descriptors are handled
+    int                     m_hotplug_handle;
+    std::function<void()>   m_changed;
+    std::vector<std::unique_ptr<QSocketNotifier>> m_notifiers;
+
+    // a DREVO device was plugged in or removed
+    void deviceChanged(libusb_device *device);
+    void addNotifier(int fd, short events);
+    void removeNotifier(int fd);
+    void handleEvents();
+    // /dev/hidrawN of the programming interface of a plugged in keyboard, empty if there is none
+    static QString hidrawNode(const DeviceInfo &device);
+    // send one report without logging it
+    bool transfer(const Report &report);
+    // log a report and what it does; marked when it was not sent
+    void log(const Report &report, bool sent, const QString &what) const;
 };
 
 } // namespace drevo

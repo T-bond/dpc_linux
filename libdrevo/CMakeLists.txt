@@ -5,6 +5,7 @@ add_library(drevo_keyboard STATIC
     include/drevo/Lighting.h
     include/drevo/Keyboard.h
     src/Keyboard.cpp
+    src/Describe.cpp                src/Describe.h
     src/Protocol.cpp                src/Protocol.h
     src/UsbTransport.cpp            src/UsbTransport.h
 )

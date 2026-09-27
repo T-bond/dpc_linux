@@ -2,6 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Shapes
 
 // two-level list of the functions that can be assigned to a key
 Flickable {
@@ -9,7 +11,6 @@ Flickable {
 
     // [{ text, icon, type, children: [{ text, value }] }]
     property var functions: []
-    property font font
 
     // "parent" or "parent/child" index of the selected item
     property string selectedItem: ""
@@ -17,73 +18,101 @@ Flickable {
     signal functionPressed(int type, string text)
     signal subFunctionPressed(int type, int value, string text)
 
-    readonly property int rowHeight: 29
-
+    readonly property int rowHeight: 34
+    // rows always leave room for the scroll bar, so they keep their width when groups open and close
+    readonly property real rowWidth: root.width - scrollBar.width - 4
 
     clip: true
     contentHeight: column.height
     boundsBehavior: Flickable.StopAtBounds
-    ScrollBar.vertical: ScrollBar {}
+    ScrollBar.vertical: ScrollBar {
+        id: scrollBar
+    }
 
-    component TreeRow: Rectangle {
+    component TreeRow: ItemDelegate {
         id: row
 
         property string itemId
-        property string text
-        property url icon
-        property int indent
+        property url iconSource
+        property bool child: false
         property bool expandable: false
         property bool expanded: false
 
-        signal pressed()
-        signal toggled()
-
         readonly property bool selected: root.selectedItem === itemId
 
-        width: root.width
+        width: root.rowWidth
         height: root.rowHeight
-        color: selected ? palette.highlight : "transparent"
+        padding: 0
+        hoverEnabled: true
 
-        Text {
-            visible: row.expandable
-            x: row.indent
-            anchors.verticalCenter: parent.verticalCenter
-            text: row.expanded ? "▾" : "▸"
-            color: row.selected ? palette.highlightedText : palette.mid
-            font.pointSize: 10
+        background: Rectangle {
+            radius: Theme.smallRadius
+            color: row.selected ? Theme.accentSoft : row.hovered ? Theme.surfaceAlt : "transparent"
         }
 
-        Image {
-            id: iconImage
-            visible: row.icon.toString() !== ""
-            x: row.indent + 17
-            anchors.verticalCenter: parent.verticalCenter
-            source: row.icon
-        }
+        contentItem: RowLayout {
+            spacing: 10
 
-        Text {
-            x: row.indent + 45
-            anchors.verticalCenter: parent.verticalCenter
-            text: row.text
-            font: root.font
-            color: row.selected ? palette.highlightedText : palette.text
-        }
+            Item {
+                Layout.leftMargin: row.child ? 34 : 6
+                Layout.preferredWidth: 18
+                Layout.preferredHeight: 18
 
-        MouseArea {
-            anchors.fill: parent
-            onPressed: (mouse) => {
-                if (row.expandable && mouse.x < row.indent + 17)
-                    row.toggled()
-                else
-                    row.pressed()
+                TintedIcon {
+                    anchors.fill: parent
+                    visible: !row.child
+                    icon: row.iconSource
+                    color: row.selected ? Theme.accentText : Theme.textMuted
+                }
+                // dot of the second level
+                Rectangle {
+                    visible: row.child
+                    anchors.centerIn: parent
+                    width: 5
+                    height: 5
+                    radius: 3
+                    color: row.selected ? Theme.accentText : Theme.border
+                }
             }
-            onDoubleClicked: if (row.expandable) row.toggled()
+
+            Label {
+                Layout.fillWidth: true
+                text: row.text
+                elide: Text.ElideRight
+                font.pointSize: 10.5
+                font.weight: row.selected ? Font.DemiBold : Font.Normal
+                color: Theme.text
+            }
+
+            // chevron of a group, centered in its square so it turns in place
+            Shape {
+                visible: row.expandable
+                Layout.alignment: Qt.AlignVCenter
+                Layout.rightMargin: 8
+                Layout.preferredWidth: 12
+                Layout.preferredHeight: 12
+                preferredRendererType: Shape.CurveRenderer
+                rotation: row.expanded ? 90 : 0
+                Behavior on rotation { NumberAnimation { duration: 120 } }
+
+                ShapePath {
+                    strokeColor: Theme.textMuted
+                    strokeWidth: 1.6
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+                    startX: 4.5; startY: 2.5
+                    PathLine { x: 8; y: 6 }
+                    PathLine { x: 4.5; y: 9.5 }
+                }
+            }
         }
     }
 
     Column {
         id: column
-        width: root.width
+        width: root.rowWidth
+        spacing: 2
 
         Repeater {
             model: root.functions
@@ -96,18 +125,22 @@ Flickable {
 
                 property bool expanded: false
 
-                width: root.width
+                width: root.rowWidth
+                spacing: 2
 
                 TreeRow {
                     itemId: String(functionItem.index)
                     text: functionItem.modelData.text
-                    icon: functionItem.modelData.icon
-                    indent: 0
+                    iconSource: functionItem.modelData.icon
                     expandable: functionItem.modelData.children.length > 0
                     expanded: functionItem.expanded
 
-                    onToggled: functionItem.expanded = !functionItem.expanded
-                    onPressed: {
+                    // groups open and close, the others are functions
+                    onClicked: {
+                        if (expandable) {
+                            functionItem.expanded = !functionItem.expanded
+                            return
+                        }
                         root.selectedItem = itemId
                         root.functionPressed(functionItem.modelData.type, functionItem.modelData.text)
                     }
@@ -122,9 +155,9 @@ Flickable {
 
                         itemId: functionItem.index + "/" + index
                         text: modelData.text
-                        indent: 0
+                        child: true
 
-                        onPressed: {
+                        onClicked: {
                             root.selectedItem = itemId
                             root.subFunctionPressed(functionItem.modelData.type, modelData.value, modelData.text)
                         }

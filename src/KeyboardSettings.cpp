@@ -27,6 +27,10 @@ void KeyboardSettings::componentComplete()
 
 void KeyboardSettings::setReportRate(int value)
 {
+    // no current profile (its hardware profile shows none): nothing to store
+    if (m_current_profile <= 0)
+        return;
+
     m_report_rate = value;
     emit reportRateChanged();
 
@@ -36,6 +40,10 @@ void KeyboardSettings::setReportRate(int value)
 
 void KeyboardSettings::setUsbSleep(int value)
 {
+    // no current profile (its hardware profile shows none): nothing to store
+    if (m_current_profile <= 0)
+        return;
+
     if (m_usb_sleep != value)
     {
         m_usb_sleep = value;
@@ -48,6 +56,10 @@ void KeyboardSettings::setUsbSleep(int value)
 
 void KeyboardSettings::setBacklightSleep(int value)
 {
+    // no current profile (its hardware profile shows none): nothing to store
+    if (m_current_profile <= 0)
+        return;
+
     if (m_backlight_sleep != value)
     {
         m_backlight_sleep = value;
@@ -60,6 +72,10 @@ void KeyboardSettings::setBacklightSleep(int value)
 
 void KeyboardSettings::setWirelessSleep(int value)
 {
+    // no current profile (its hardware profile shows none): nothing to store
+    if (m_current_profile <= 0)
+        return;
+
     if (m_wireless_sleep != value)
     {
         m_wireless_sleep = value;
@@ -73,12 +89,16 @@ void KeyboardSettings::setWirelessSleep(int value)
 // restore the keyboard to its factory settings
 void KeyboardSettings::resetKeyboard()
 {
-    DeviceManager::instance()->keyboard()->resetToFactory();
+    DeviceManager::instance()->resetKeyboard();
 }
 
 // load config data
 void KeyboardSettings::loadConfigData()
 {
+    // no current profile: the keyboard keeps its settings
+    if (m_current_profile <= 0)
+        return;
+
     QString value;
     m_report_rate = readConfigValue("report_rate", value);
     m_usb_sleep = readConfigValue("delay_usbwiresleep", value);
