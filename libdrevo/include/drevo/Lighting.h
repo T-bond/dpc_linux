@@ -8,29 +8,80 @@
 namespace drevo
 {
 
-// backlight effect; fields a mode does not use are ignored:
-//   Static, Custom                              brightness, useColor, color
-//   Spectrum, PowerGauge, Marquee               brightness, speed
-//   Rainbow                                     brightness, speed, direction
-//   Breathing, TwinklingStars, Reactive, Aurora brightness, speed, useColor, color
-struct LightingEffect
+// Backlight effects, one type per light mode with only the settings that mode has.
+// useColor: use color instead of the keyboard's own colors.
+
+// one color on all keys
+struct StaticEffect
 {
-    LightMode           mode = LightMode::Static;
+    static constexpr LightMode mode = LightMode::Static;
+
+    Brightness  brightness;
+    Rgb         color;
+    bool        useColor = false;
+
+    // all lights dark: color black, brightness 0
+    static constexpr StaticEffect off() { return StaticEffect { Brightness(), Rgb(), true }; }
+};
+
+// animation with the keyboard's own colors
+template <LightMode Mode>
+struct AnimatedEffect
+{
+    static constexpr LightMode mode = Mode;
+
+    Brightness  brightness;
+    Speed       speed;
+};
+
+using SpectrumEffect = AnimatedEffect<LightMode::Spectrum>;
+using PowerGaugeEffect = AnimatedEffect<LightMode::PowerGauge>;
+using MarqueeEffect = AnimatedEffect<LightMode::Marquee>;
+
+struct RainbowEffect
+{
+    static constexpr LightMode mode = LightMode::Rainbow;
+
     Brightness          brightness;
     Speed               speed;
-    // use color instead of the keyboard's own colors
-    bool                useColor = false;
-    Rgb                 color;
     RainbowDirection    direction = RainbowDirection::RightToLeft;
-
-    // all lights dark: static mode, color black, brightness 0
-    static LightingEffect off()
-    {
-        LightingEffect effect;
-        effect.useColor = true;
-        return effect;
-    }
 };
+
+// animation that can use a color
+template <LightMode Mode>
+struct ColorAnimatedEffect
+{
+    static constexpr LightMode mode = Mode;
+
+    Brightness  brightness;
+    Speed       speed;
+    Rgb         color;
+    bool        useColor = false;
+};
+
+using BreathingEffect = ColorAnimatedEffect<LightMode::Breathing>;
+using TwinklingStarsEffect = ColorAnimatedEffect<LightMode::TwinklingStars>;
+using ReactiveEffect = ColorAnimatedEffect<LightMode::Reactive>;
+using AuroraEffect = ColorAnimatedEffect<LightMode::Aurora>;
+
+// per-key and side LED colors, set with Keyboard::setLedColors()
+struct CustomEffect
+{
+    static constexpr LightMode mode = LightMode::Custom;
+
+    Brightness  brightness;
+    Rgb         color;
+};
+
+using LightingEffect = std::variant<StaticEffect, SpectrumEffect, RainbowEffect, PowerGaugeEffect,
+                                    BreathingEffect, TwinklingStarsEffect, ReactiveEffect, MarqueeEffect,
+                                    AuroraEffect, CustomEffect>;
+
+// light mode of an effect
+inline LightMode lightMode(const LightingEffect &effect)
+{
+    return std::visit([](const auto &e) { return e.mode; }, effect);
+}
 
 // number of LEDs in a side light bar
 constexpr int ledCount(LightBar bar)

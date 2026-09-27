@@ -178,33 +178,38 @@ void TestProtocol::sideLeds()
 
 void TestProtocol::lighting()
 {
-    const LightMode modes[] = {
-        LightMode::Static, LightMode::Spectrum, LightMode::Rainbow, LightMode::PowerGauge, LightMode::Breathing,
-        LightMode::TwinklingStars, LightMode::Reactive, LightMode::Marquee, LightMode::Aurora, LightMode::Custom,
-    };
-    for (LightMode mode : modes)
+    // the golden inputs: brightness 11, speed 3, color 12 34 56, without / with use color (_0 / _1)
+    const Brightness brightness = Brightness::clamped(11);
+    const Speed speed = Speed::clamped(3);
+    const Rgb color { 0x12, 0x34, 0x56 };
+
+    for (bool use_color : { false, true })
     {
-        for (bool use_color : { false, true })
-        {
-            LightingEffect effect;
-            effect.mode = mode;
-            effect.useColor = use_color;
-            effect.speed = Speed::clamped(3);
-            effect.brightness = Brightness::clamped(11);
-            effect.color = { 0x12, 0x34, 0x56 };
-            effect.direction = drevo::RainbowDirection::LeftToRight;
-            const QByteArray name = "light_" + QByteArray::number(int(mode)) + "_" + QByteArray::number(use_color ? 1 : 0);
-            compare(name, hex(encodeLighting(effect)));
-        }
+        const QByteArray c = use_color ? "_1" : "_0";
+        compare("light_1" + c, hex(encodeLighting(StaticEffect { brightness, color, use_color })));
+        compare("light_5" + c, hex(encodeLighting(BreathingEffect { brightness, speed, color, use_color })));
+        compare("light_6" + c, hex(encodeLighting(TwinklingStarsEffect { brightness, speed, color, use_color })));
+        compare("light_7" + c, hex(encodeLighting(ReactiveEffect { brightness, speed, color, use_color })));
+        compare("light_9" + c, hex(encodeLighting(AuroraEffect { brightness, speed, color, use_color })));
+
+        // these modes have no color setting, the old encoder ignored it
+        compare("light_2" + c, hex(encodeLighting(SpectrumEffect { brightness, speed })));
+        compare("light_4" + c, hex(encodeLighting(PowerGaugeEffect { brightness, speed })));
+        compare("light_8" + c, hex(encodeLighting(MarqueeEffect { brightness, speed })));
+        compare("light_3" + c, hex(encodeLighting(RainbowEffect { brightness, speed, RainbowDirection::LeftToRight })));
     }
-    compare("lightsoff", hex(encodeLighting(LightingEffect::off())));
+    // the custom mode has no use color setting (light_12_1 set that bit)
+    compare("light_12_0", hex(encodeLighting(CustomEffect { brightness, color })));
+
+    compare("lightsoff", hex(encodeLighting(StaticEffect::off())));
+    QCOMPARE(hex(encodeLighting(StaticEffect::off())), QByteArray("05fe018000000000"));
 
     // the direction is the byte after speed / brightness
-    LightingEffect rainbow;
-    rainbow.mode = LightMode::Rainbow;
-    rainbow.direction = drevo::RainbowDirection::UpToDown;
-    QCOMPARE(hex(encodeLighting(rainbow)), QByteArray("05fe030003000000"));
-    QCOMPARE(hex(encodeLighting(LightingEffect::off())), QByteArray("05fe018000000000"));
+    QCOMPARE(hex(encodeLighting(RainbowEffect { Brightness(), Speed(), RainbowDirection::UpToDown })),
+             QByteArray("05fe030003000000"));
+
+    QCOMPARE(lightMode(LightingEffect(MarqueeEffect {})), LightMode::Marquee);
+    QCOMPARE(lightMode(LightingEffect(AuroraEffect {})), LightMode::Aurora);
 }
 
 void TestProtocol::commands()

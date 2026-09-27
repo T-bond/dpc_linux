@@ -60,15 +60,27 @@ std::optional<drevo::LightingEffect> toEffect(const RadiData &data)
     if (!mode)
         return std::nullopt;
 
-    drevo::LightingEffect effect;
-    effect.mode = *mode;
-    effect.brightness = drevo::Brightness::clamped(data.rgb_brightness);
-    effect.speed = drevo::Speed::clamped(data.rgb_speed);
-    effect.useColor = data.rgb_mode == 1;
-    effect.color = { quint8(data.r_value), quint8(data.g_value), quint8(data.b_value) };
-    effect.direction = drevo::enumFromValue<drevo::RainbowDirection>(data.rgb_direction)
-                           .value_or(drevo::RainbowDirection::RightToLeft);
-    return effect;
+    const drevo::Brightness brightness = drevo::Brightness::clamped(data.rgb_brightness);
+    const drevo::Speed speed = drevo::Speed::clamped(data.rgb_speed);
+    const drevo::Rgb color { quint8(data.r_value), quint8(data.g_value), quint8(data.b_value) };
+    const bool use_color = data.rgb_mode == 1;
+    const drevo::RainbowDirection direction = drevo::enumFromValue<drevo::RainbowDirection>(data.rgb_direction)
+                                                  .value_or(drevo::RainbowDirection::RightToLeft);
+
+    switch (*mode)
+    {
+    case drevo::LightMode::Static:          return drevo::StaticEffect { brightness, color, use_color };
+    case drevo::LightMode::Spectrum:        return drevo::SpectrumEffect { brightness, speed };
+    case drevo::LightMode::Rainbow:         return drevo::RainbowEffect { brightness, speed, direction };
+    case drevo::LightMode::PowerGauge:      return drevo::PowerGaugeEffect { brightness, speed };
+    case drevo::LightMode::Breathing:       return drevo::BreathingEffect { brightness, speed, color, use_color };
+    case drevo::LightMode::TwinklingStars:  return drevo::TwinklingStarsEffect { brightness, speed, color, use_color };
+    case drevo::LightMode::Reactive:        return drevo::ReactiveEffect { brightness, speed, color, use_color };
+    case drevo::LightMode::Marquee:         return drevo::MarqueeEffect { brightness, speed };
+    case drevo::LightMode::Aurora:          return drevo::AuroraEffect { brightness, speed, color, use_color };
+    case drevo::LightMode::Custom:          return drevo::CustomEffect { brightness, color };
+    }
+    return std::nullopt;
 }
 
 // stored key colors as keyboard LED colors; unknown keys are skipped

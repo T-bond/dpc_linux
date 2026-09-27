@@ -133,7 +133,7 @@ void DeviceManager::setLightsOff(bool lights_off)
     if (lights_off)
     {
         // static mode, custom color black, brightness 0 (not stored in the profile)
-        m_keyboard.setLighting(drevo::LightingEffect::off());
+        m_keyboard.setLighting(drevo::StaticEffect::off());
 
         m_lights_off = true;
         emit lightsOffChanged();

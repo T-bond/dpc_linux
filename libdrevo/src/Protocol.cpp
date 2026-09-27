@@ -266,6 +266,53 @@ Report command(std::initializer_list<quint8> bytes)
     return report;
 }
 
+// 05 FE mode p0 p1 p2 p3 00: p0 packs use color (bit 7), speed (bits 4-6) and brightness (bits 0-3)
+struct LightingEncoder
+{
+    Report report {};
+
+    void settings(LightMode mode, bool use_color, int speed, int brightness)
+    {
+        report[0] = 0x05;
+        report[1] = 0xFE;
+        report[2] = quint8(mode);
+        report[3] = quint8(((use_color ? 1u : 0u) << 7) | (unsigned(speed) << 4) | unsigned(brightness));
+    }
+    void color(Rgb rgb)
+    {
+        report[4] = rgb.r;
+        report[5] = rgb.g;
+        report[6] = rgb.b;
+    }
+
+    void operator()(const StaticEffect &e)
+    {
+        settings(e.mode, e.useColor, 0, e.brightness.value());
+        color(e.color);
+    }
+    template <LightMode Mode>
+    void operator()(const AnimatedEffect<Mode> &e)
+    {
+        settings(e.mode, false, e.speed.value(), e.brightness.value());
+    }
+    void operator()(const RainbowEffect &e)
+    {
+        settings(e.mode, false, e.speed.value(), e.brightness.value());
+        report[4] = quint8(e.direction);
+    }
+    template <LightMode Mode>
+    void operator()(const ColorAnimatedEffect<Mode> &e)
+    {
+        settings(e.mode, e.useColor, e.speed.value(), e.brightness.value());
+        color(e.color);
+    }
+    void operator()(const CustomEffect &e)
+    {
+        settings(e.mode, false, 0, e.brightness.value());
+        color(e.color);
+    }
+};
+
 } // namespace
 
 int keyIndex(int key_value, Layout layout)
@@ -359,44 +406,9 @@ std::optional<KeyPacket> encodeMacro(Key key, int play_times, const QList<MacroS
 
 Report encodeLighting(const LightingEffect &effect)
 {
-    const unsigned use_color = effect.useColor ? 1 : 0;
-    const unsigned speed = unsigned(effect.speed.value());
-    const unsigned brightness = unsigned(effect.brightness.value());
-
-    Report report {};
-    report[0] = 0x05;
-    report[1] = 0xFE;
-    report[2] = quint8(effect.mode);
-
-    switch (effect.mode)
-    {
-    case LightMode::Static:
-    case LightMode::Custom:
-        report[3] = quint8((use_color << 7) | brightness);
-        report[4] = effect.color.r;
-        report[5] = effect.color.g;
-        report[6] = effect.color.b;
-        break;
-    case LightMode::Spectrum:
-    case LightMode::PowerGauge:
-    case LightMode::Marquee:
-        report[3] = quint8((speed << 4) | brightness);
-        break;
-    case LightMode::Rainbow:
-        report[3] = quint8((speed << 4) | brightness);
-        report[4] = quint8(effect.direction);
-        break;
-    case LightMode::Breathing:
-    case LightMode::TwinklingStars:
-    case LightMode::Reactive:
-    case LightMode::Aurora:
-        report[3] = quint8((speed << 4) | (use_color << 7) | brightness);
-        report[4] = effect.color.r;
-        report[5] = effect.color.g;
-        report[6] = effect.color.b;
-        break;
-    }
-    return report;
+    LightingEncoder encoder;
+    std::visit(encoder, effect);
+    return encoder.report;
 }
 
 LedPacket encodeLedColors(const QList<LedColor> &colors, Layout layout)
