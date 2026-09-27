@@ -48,8 +48,8 @@ signals:
     void wirelessSleepChanged();
 
 private:
-    // load config data
-    void loadConfigData();
+    // load config data; send: also send it to the keyboard
+    void loadConfigData(bool send = true);
     int readConfigValue(const QString &key, QString &value);
     void updateConfigValue(const QString &key, int value);
     // send keyboard report rate

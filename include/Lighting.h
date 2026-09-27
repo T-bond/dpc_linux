@@ -94,16 +94,16 @@ signals:
     void lightColorChanged();
 
 private:
-    // select the light mode of the current profile
-    void loadProfile();
-    // set backlight mode
-    void setBackLightMode(int light_mode);
+    // select the light mode of the current profile; send: also send it to the keyboard
+    void loadProfile(bool send = true);
+    // set backlight mode; send: also send it to the keyboard
+    void setBackLightMode(int light_mode, bool send = true);
     // query the data of the current mode
     bool currentRadiData(RadiData &data) const;
     // store the data of the current mode and send it to the keyboard
     void updateRadiData(RadiData &data);
     // send the key colors of the custom mode to the keyboard
-    void sendKeyRGBData(int radi_id, bool update_keyboard);
+    void sendKeyRGBData(int radi_id, bool update_keyboard, bool send = true);
     void setLightColor(const QColor &color);
     // send the effect of a light mode; it ends "lights off"
     void sendEffect(const RadiData &data);

@@ -21,8 +21,8 @@ KeyboardSettings::KeyboardSettings(QObject *parent)
 
 void KeyboardSettings::componentComplete()
 {
-    // load config data
-    loadConfigData();
+    // nothing is written at startup: the keyboard keeps its settings
+    loadConfigData(false);
 }
 
 void KeyboardSettings::setReportRate(int value)
@@ -93,7 +93,7 @@ void KeyboardSettings::resetKeyboard()
 }
 
 // load config data
-void KeyboardSettings::loadConfigData()
+void KeyboardSettings::loadConfigData(bool send)
 {
     // no current profile: the keyboard keeps its settings
     if (m_current_profile <= 0)
@@ -110,6 +110,8 @@ void KeyboardSettings::loadConfigData()
     emit backlightSleepChanged();
     emit wirelessSleepChanged();
 
+    if (!send)
+        return;
     sendReportRate();
     // usb-mode
     sendKeyboardSleepTime(false);

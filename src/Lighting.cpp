@@ -142,11 +142,12 @@ Lighting::Lighting(QObject *parent)
 
 void Lighting::componentComplete()
 {
-    loadProfile();
+    // nothing is written at startup: the keyboard keeps its lighting, it may have been changed on it
+    loadProfile(false);
 }
 
 // select the light mode of the current profile
-void Lighting::loadProfile()
+void Lighting::loadProfile(bool send)
 {
     // no current profile (its hardware profile shows none): the keyboard keeps its lighting
     if (m_current_profile <= 0)
@@ -158,7 +159,7 @@ void Lighting::loadProfile()
     m_mode_index = getIndexByLightMode(select_mode);
     emit modeChanged();
 
-    setBackLightMode(select_mode);
+    setBackLightMode(select_mode, send);
 }
 
 void Lighting::setKeyboard(KeyboardModel *keyboard)
@@ -354,7 +355,7 @@ void Lighting::resetAllLeds()
 }
 
 // set backlight mode
-void Lighting::setBackLightMode(int light_mode)
+void Lighting::setBackLightMode(int light_mode, bool send)
 {
     if (m_current_mode == light_mode || m_current_profile <= 0)
         return ;
@@ -366,7 +367,8 @@ void Lighting::setBackLightMode(int light_mode)
     m_current_mode = light_mode;
     emit modeChanged();
 
-    sendEffect(data);
+    if (send)
+        sendEffect(data);
 
     m_brightness = data.rgb_brightness;
     m_direction = drevo::enumFromValue<drevo::RainbowDirection>(data.rgb_direction)
@@ -391,7 +393,7 @@ void Lighting::setBackLightMode(int light_mode)
     emit settingsChanged();
 
     if (light_mode == LM_CUSTOM)
-        sendKeyRGBData(data.radi_id, true);
+        sendKeyRGBData(data.radi_id, true, send);
     else
         setLightColor(m_color_visible ? radiColor(data) : kDefaultLightColor);
 }
@@ -414,15 +416,18 @@ void Lighting::updateRadiData(RadiData &data)
 }
 
 // send the key colors of the custom mode to the keyboard
-void Lighting::sendKeyRGBData(int radi_id, bool update_keyboard)
+void Lighting::sendKeyRGBData(int radi_id, bool update_keyboard, bool send)
 {
     QVector<RGBData*> vec_data;
     DeviceManager::instance()->db()->queryKeysRGBData(radi_id, vec_data);
 
     // key positions differ per layout; the widget UI always sent the 87-key layout
-    DeviceManager *device = DeviceManager::instance();
-    device->keyboard()->setLedColors(toLedColors(vec_data));
-    device->lightingSent();
+    if (send)
+    {
+        DeviceManager *device = DeviceManager::instance();
+        device->keyboard()->setLedColors(toLedColors(vec_data));
+        device->lightingSent();
+    }
 
     for (RGBData *rgb_data : vec_data)
     {
