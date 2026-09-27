@@ -5,6 +5,8 @@
 #include <QPoint>
 #include <QtMath>
 
+#include "LightModes.h"
+
 KeyboardModel::KeyboardModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -44,6 +46,7 @@ QVariant KeyboardModel::data(const QModelIndex &index, int role) const
     case KeyHeightRole:     return key.key_rect.height();
     case KeyColorRole:      return key.key_color;
     case KeyCheckedRole:    return key.key_check;
+    case KeySideLedRole:    return sideLedFromValue(key.key_value).has_value();
     default:                return QVariant();
     }
 }
@@ -59,15 +62,19 @@ QHash<int, QByteArray> KeyboardModel::roleNames() const
         { KeyHeightRole,    "keyHeight" },
         { KeyColorRole,     "keyColor" },
         { KeyCheckedRole,   "keyChecked" },
+        { KeySideLedRole,   "keySideLed" },
     };
 }
 
-// index of the key at a position of the keyboard image, -1 for none
-int KeyboardModel::indexAt(qreal x, qreal y) const
+// index of the key at a position of the keyboard image, -1 for none;
+// the side LEDs around the image only with side_leds
+int KeyboardModel::indexAt(qreal x, qreal y, bool side_leds) const
 {
     QPoint pos(qFloor(x), qFloor(y));
     for (int i = 0; i < m_keys.size(); i++)
     {
+        if (!side_leds && sideLedFromValue(m_keys.at(i).key_value))
+            continue;
         if (m_keys.at(i).key_rect.contains(pos))
             return i;
     }
@@ -133,6 +140,18 @@ void KeyboardModel::setCheck(int index, bool key_check)
 bool KeyboardModel::isChecked(int index) const
 {
     return index >= 0 && index < m_keys.size() && m_keys.at(index).key_check;
+}
+
+// key values of the LEDs of a side light bar (drevo::LightBar value)
+QVariantList KeyboardModel::sideLedValues(int bar) const
+{
+    QVariantList values;
+    std::optional<drevo::LightBar> light_bar = drevo::enumFromValue<drevo::LightBar>(bar);
+    if (!light_bar)
+        return values;
+    for (int i = 0; i < drevo::ledCount(*light_bar); i++)
+        values.append(sideLedValue(*drevo::SideLed::make(*light_bar, i)));
+    return values;
 }
 
 // set key color

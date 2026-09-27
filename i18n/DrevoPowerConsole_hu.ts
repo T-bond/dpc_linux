@@ -69,17 +69,17 @@
 <context>
     <name>DeviceDB</name>
     <message>
-        <location filename="../src/DeviceDB.cpp" line="87"/>
+        <location filename="../src/DeviceDB.cpp" line="106"/>
         <source>The settings file %1 is not writable, so changes cannot be saved or sent to the keyboard. It was probably created by running the program as root; make it writable, e.g. with: sudo chown -R $USER &quot;%2&quot;</source>
         <translation>A(z) %1 beállításfájl nem írható, ezért a változások nem menthetők és nem küldhetők el a billentyűzetre. Valószínűleg a program rootként való futtatásakor jött létre; tegye írhatóvá, például ezzel: sudo chown -R $USER &quot;%2&quot;</translation>
     </message>
     <message>
-        <location filename="../src/DeviceDB.cpp" line="115"/>
+        <location filename="../src/DeviceDB.cpp" line="134"/>
         <source>Default</source>
         <translation>Alapértelmezett</translation>
     </message>
     <message>
-        <location filename="../src/DeviceDB.cpp" line="116"/>
+        <location filename="../src/DeviceDB.cpp" line="135"/>
         <source>Profile %1</source>
         <translation>%1. profil</translation>
     </message>
@@ -278,54 +278,77 @@
     </message>
 </context>
 <context>
+    <name>KeyboardModel</name>
+    <message>
+        <location filename="../src/KeyboardModelLayout.cpp" line="435"/>
+        <source>Left side LED %1</source>
+        <translation>%1. bal oldali LED</translation>
+    </message>
+    <message>
+        <location filename="../src/KeyboardModelLayout.cpp" line="436"/>
+        <source>Top side LED %1</source>
+        <translation>%1. felső LED</translation>
+    </message>
+    <message>
+        <location filename="../src/KeyboardModelLayout.cpp" line="437"/>
+        <source>Right side LED %1</source>
+        <translation>%1. jobb oldali LED</translation>
+    </message>
+    <message>
+        <location filename="../src/KeyboardModelLayout.cpp" line="438"/>
+        <source>Bottom side LED %1</source>
+        <translation>%1. alsó LED</translation>
+    </message>
+</context>
+<context>
     <name>Lighting</name>
     <message>
-        <location filename="../include/LightModes.h" line="31"/>
+        <location filename="../include/LightModes.h" line="34"/>
         <source>Static</source>
         <translation>Statikus</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="32"/>
+        <location filename="../include/LightModes.h" line="35"/>
         <source>Spectrum</source>
         <translation>Spektrum</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="33"/>
+        <location filename="../include/LightModes.h" line="36"/>
         <source>Rainbow</source>
         <translation>Szivárvány</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="34"/>
+        <location filename="../include/LightModes.h" line="37"/>
         <source>Power Gauge</source>
         <translation>Teljesítményjelző</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="35"/>
+        <location filename="../include/LightModes.h" line="38"/>
         <source>Breathing</source>
         <translation>Lélegzés</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="36"/>
+        <location filename="../include/LightModes.h" line="39"/>
         <source>Twinkling Stars</source>
         <translation>Csillogó csillagok</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="37"/>
+        <location filename="../include/LightModes.h" line="40"/>
         <source>Reactive</source>
         <translation>Reaktív</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="38"/>
+        <location filename="../include/LightModes.h" line="41"/>
         <source>Marquee</source>
         <translation>Futófény</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="39"/>
+        <location filename="../include/LightModes.h" line="42"/>
         <source>Aurora</source>
         <translation>Sarki fény</translation>
     </message>
     <message>
-        <location filename="../include/LightModes.h" line="41"/>
+        <location filename="../include/LightModes.h" line="44"/>
         <source>Custom</source>
         <translation>Egyéni</translation>
     </message>

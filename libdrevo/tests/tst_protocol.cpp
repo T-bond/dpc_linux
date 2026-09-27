@@ -58,6 +58,7 @@ private slots:
     void initTestCase();
     void keyActions();
     void ledColors();
+    void sideLeds();
     void lighting();
     void commands();
     void validation();
@@ -132,6 +133,47 @@ void TestProtocol::ledColors()
         compare("rgb_" + l, hex(packet));
         compare("chunks_rgb_" + l, hex(chunk(QByteArrayView(packet.data(), packet.size()))));
     }
+}
+
+void TestProtocol::sideLeds()
+{
+    QVERIFY(SideLed::make(LightBar::Top, 13));
+    QVERIFY(!SideLed::make(LightBar::Top, 14));
+    QVERIFY(SideLed::make(LightBar::Bottom, 13));
+    QVERIFY(!SideLed::make(LightBar::Bottom, 14));
+    QVERIFY(!SideLed::make(LightBar::Left, 5));
+    QVERIFY(!SideLed::make(LightBar::Right, -1));
+
+    // same bytes as the whole bar when every LED of it has the bar's color
+    for (Layout layout : kLayouts)
+    {
+        for (LightBar bar : { LightBar::Left, LightBar::Top, LightBar::Right, LightBar::Bottom })
+        {
+            QList<LedColor> leds;
+            for (int i = 0; i < ledCount(bar); ++i)
+                leds.append({ *SideLed::make(bar, i), Rgb { 1, 2, 3 } });
+            QCOMPARE(encodeLedColors(leds, layout), encodeLedColors({ { bar, Rgb { 1, 2, 3 } } }, layout));
+        }
+    }
+
+    // clockwise slots: first LED of each bar (leftmost / topmost)
+    const int bars_offset = 0x109;      // 87 keys
+    auto slotOf = [&](LightBar bar, int index) {
+        LedPacket packet = encodeLedColors({ { *SideLed::make(bar, index), Rgb { 0xAA, 0xBB, 0xCC } } }, Layout::Tkl87);
+        for (int slot = 0; slot < 41; ++slot)
+        {
+            if (packet[bars_offset + slot * 3] == 0xAA)
+                return slot;
+        }
+        return -1;
+    };
+    QCOMPARE(slotOf(LightBar::Top, 0), 0);
+    QCOMPARE(slotOf(LightBar::Top, 13), 13);
+    QCOMPARE(slotOf(LightBar::Right, 0), 15);
+    QCOMPARE(slotOf(LightBar::Bottom, 0), 34);
+    QCOMPARE(slotOf(LightBar::Bottom, 13), 21);
+    QCOMPARE(slotOf(LightBar::Left, 0), 39);
+    QCOMPARE(slotOf(LightBar::Left, 4), 35);
 }
 
 void TestProtocol::lighting()

@@ -6,7 +6,10 @@
 #include <QRect>
 #include <QString>
 #include <QVector>
+#include <QVariantList>
 #include <QtQml/qqmlregistration.h>
+
+#include <drevo/Types.h>
 
 // key on the keyboard image
 struct KeyboardKey
@@ -29,7 +32,8 @@ public:
     enum ViewMode
     {
         LightStatic = 0,    // whole keyboard lit with one color, no interaction
-        LightCustom,        // per-key colors, keys can be selected (shift adds to the selection)
+        LightCustom,        // per-key and side LED colors, keys and side LEDs can be selected
+                            // (Shift or Ctrl adds to the selection)
         CustomKey,          // key assignment, hover and select a single key
     };
     Q_ENUM(ViewMode)
@@ -44,6 +48,7 @@ public:
         KeyHeightRole,
         KeyColorRole,
         KeyCheckedRole,
+        KeySideLedRole,     // side LED around the keyboard, not a key
     };
 
     explicit KeyboardModel(QObject *parent = nullptr);
@@ -54,8 +59,9 @@ public:
 
     const QVector<KeyboardKey>& keys() const { return m_keys; }
 
-    // index of the key at a position of the keyboard image, -1 for none
-    Q_INVOKABLE int indexAt(qreal x, qreal y) const;
+    // index of the key at a position of the keyboard image, -1 for none;
+    // the side LEDs around the image only with side_leds
+    Q_INVOKABLE int indexAt(qreal x, qreal y, bool side_leds = false) const;
     Q_INVOKABLE QString keyText(int index) const;
     Q_INVOKABLE int keyValue(int index) const;
 
@@ -68,6 +74,8 @@ public:
     // check or uncheck the key at index, other keys keep their check
     Q_INVOKABLE void setCheck(int index, bool key_check);
     Q_INVOKABLE bool isChecked(int index) const;
+    // key values of the LEDs of a side light bar (drevo::LightBar value)
+    Q_INVOKABLE QVariantList sideLedValues(int bar) const;
 
     // set key color
     Q_INVOKABLE void setKeyColor(int key_value, const QColor &color);
@@ -94,6 +102,8 @@ private:
     void initKeyboardKey();
     // add key
     int addKeyItem(QString key_text, int key_value, QRect key_rect);
+    // add the LEDs of a side light bar, dividing its rectangle
+    void addSideLeds(drevo::LightBar bar, const QRect &rect);
 
     void keysChanged(int role);
 

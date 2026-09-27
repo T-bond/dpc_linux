@@ -22,6 +22,10 @@ Item {
     // key legends of unlit keys, independent of the theme
     readonly property color unlitColor: "#efefef"
     readonly property color frameColor: Qt.rgba(51 / 255, 51 / 255, 51 / 255, 1)
+    // side LEDs without a color
+    readonly property color unlitLedColor: "#5a5a5a"
+    // room for the side LEDs drawn around the image in LightCustom mode
+    readonly property int barMargin: 16
 
     width: 698
     height: 256
@@ -48,10 +52,12 @@ Item {
             required property int keyWidth
             required property int keyHeight
             required property color keyColor
+            required property bool keySideLed
 
             readonly property bool customLight: root.mode === KeyboardModel.LightCustom
 
-            visible: customLight ? keyColor.a > 0 : index === root.hoverIndex
+            // side LEDs are drawn over the image, see below
+            visible: !keySideLed && (customLight ? keyColor.a > 0 : index === root.hoverIndex)
             x: keyX + 1
             y: keyY
             width: keyWidth - 2
@@ -64,7 +70,37 @@ Item {
         source: DeviceManager.keyboardImage
     }
 
-    // selected and checked keys, drawn over the keyboard image
+    // side LEDs around the keyboard
+    Repeater {
+        model: root.mode === KeyboardModel.LightCustom ? root.keyboard : null
+
+        delegate: Rectangle {
+            required property int keyX
+            required property int keyY
+            required property int keyWidth
+            required property int keyHeight
+            required property color keyColor
+            required property bool keySideLed
+
+            visible: keySideLed
+            x: keyX
+            y: keyY
+            width: keyWidth
+            height: keyHeight
+            color: root.frameColor
+
+            Rectangle {
+                x: 1
+                y: 1
+                width: parent.width - 2
+                height: parent.height - 2
+                radius: 1
+                color: parent.keyColor.a > 0 ? parent.keyColor : root.unlitLedColor
+            }
+        }
+    }
+
+    // selected and checked keys and side LEDs, drawn over the keyboard image
     Repeater {
         model: root.mode === KeyboardModel.LightStatic ? null : root.keyboard
 
@@ -115,15 +151,25 @@ Item {
     }
 
     MouseArea {
+        id: mouseArea
+
+        // includes the side LEDs around the image
         anchors.fill: parent
+        anchors.margins: -root.barMargin
         enabled: root.mode !== KeyboardModel.LightStatic
         hoverEnabled: true
 
-        onPositionChanged: (mouse) => root.hoverIndex = root.keyboard.indexAt(mouse.x, mouse.y)
+        // key or side LED under the mouse, in the coordinates of the keyboard image
+        function indexAt(mouse) {
+            const pos = mouseArea.mapToItem(root, mouse.x, mouse.y)
+            return root.keyboard.indexAt(pos.x, pos.y, root.mode === KeyboardModel.LightCustom)
+        }
+
+        onPositionChanged: (mouse) => root.hoverIndex = indexAt(mouse)
         onExited: root.hoverIndex = -1
 
         onPressed: (mouse) => {
-            const index = root.keyboard.indexAt(mouse.x, mouse.y)
+            const index = indexAt(mouse)
             root.hoverIndex = index
             if (index === -1)
                 return

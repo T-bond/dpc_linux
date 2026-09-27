@@ -226,6 +226,39 @@ void setLed(LedPacket &packet, int offset, Rgb color)
     packet[offset + 2] = color.b;
 }
 
+// first slot of a side light bar in the side LED data of the RGB packet;
+// the slots run around the keyboard: top 0..13, right 15..19, bottom 21..34, left 35..39.
+// Slots 14, 20 and 40 have no LED (the former library wrote 20..34 and 35..40, counting 15 bottom
+// and 6 left LEDs). The bottom bar is verified on the keyboard, slot 40 is assumed.
+int firstSideSlot(LightBar bar)
+{
+    switch (bar)
+    {
+    case LightBar::Top:     return 0;
+    case LightBar::Right:   return 15;
+    case LightBar::Bottom:  return 21;
+    case LightBar::Left:    return 35;
+    }
+    return 0;
+}
+
+// slot of one side LED; the LEDs are chained clockwise (top left to right, right top to bottom,
+// bottom right to left, left bottom to top); verified for the bottom bar
+int sideSlot(SideLed led)
+{
+    const int count = ledCount(led.bar());
+    switch (led.bar())
+    {
+    case LightBar::Top:
+    case LightBar::Right:
+        return firstSideSlot(led.bar()) + led.index();
+    case LightBar::Bottom:
+    case LightBar::Left:
+        return firstSideSlot(led.bar()) + count - 1 - led.index();
+    }
+    return 0;
+}
+
 Report command(std::initializer_list<quint8> bytes)
 {
     Report report {};
@@ -373,8 +406,7 @@ LedPacket encodeLedColors(const QList<LedColor> &colors, Layout layout)
     packet[1] = 0x00;
     packet[2] = 0x00;
 
-    // start of the side light bar data, right after the keys of the layout;
-    // LEDs around the keyboard: top 0..13, right 15..19, bottom 20..34, left 35..40
+    // start of the side LED data, right after the keys of the layout, see firstSideSlot()
     int bars_offset = 0x109;
     switch (layout)
     {
@@ -397,15 +429,15 @@ LedPacket encodeLedColors(const QList<LedColor> &colors, Layout layout)
                 leds = 1;
             }
         }
+        else if (const LightBar *bar = std::get_if<LightBar>(&led.target))
+        {
+            offset = bars_offset + firstSideSlot(*bar) * 3;
+            leds = ledCount(*bar);
+        }
         else
         {
-            switch (std::get<LightBar>(led.target))
-            {
-            case LightBar::Top:     offset = bars_offset;           leds = 14;  break;
-            case LightBar::Right:   offset = bars_offset + 15 * 3;  leds = 5;   break;
-            case LightBar::Bottom:  offset = bars_offset + 20 * 3;  leds = 15;  break;
-            case LightBar::Left:    offset = bars_offset + 35 * 3;  leds = 6;   break;
-            }
+            offset = bars_offset + sideSlot(std::get<SideLed>(led.target)) * 3;
+            leds = 1;
         }
 
         for (int i = 0; i < leds; ++i)

@@ -22,6 +22,11 @@ These are marked `quirk` in the code. Items that change what is sent to the keyb
 
 ## To verify on the keyboard
 
+- [ ] **Side LED order**: per-LED side colors use slots 0..13 (top, left to right), 15..19 (right,
+      top to bottom), 21..34 (bottom, right to left) and 35..39 (left, bottom to top); slots 14,
+      20 and 40 have no LED. The bottom bar is verified; check the top, right and left bars,
+      especially the ends of the left bar (`libdrevo/src/Protocol.cpp`, `firstSideSlot()`).
+
 - [ ] **Custom color off**: the on-screen preview shows the stored color, but the keyboard may use
       its own default colors then (`src/Lighting.cpp`).
 - [ ] **Per-key and side light colors** on the 88 key ISO keyboard, now that the detected layout

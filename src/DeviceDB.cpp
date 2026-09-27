@@ -43,6 +43,25 @@ QString keyColorsGroup(int radi_id)
     return group.isEmpty() ? QString() : group + "/keys";
 }
 
+QString sideColorsGroup(int radi_id)
+{
+    const QString group = lightGroup(radi_id / 100, radi_id % 100);
+    return group.isEmpty() ? QString() : group + "/side";
+}
+
+// setting of a key or side LED color, empty for an unknown light mode
+QString colorSetting(int radi_id, int key_value)
+{
+    if (std::optional<drevo::SideLed> led = sideLedFromValue(key_value))
+    {
+        const QString group = sideColorsGroup(radi_id);
+        return group.isEmpty() ? QString()
+                               : QString("%1/%2/%3").arg(group, lightBarKey(led->bar())).arg(led->index());
+    }
+    const QString group = keyColorsGroup(radi_id);
+    return group.isEmpty() ? QString() : group + "/" + QString::number(key_value);
+}
+
 QString keyGroup(int profile, int key_value)
 {
     return QString("profile%1/keys/%2").arg(profile).arg(key_value);
@@ -265,10 +284,9 @@ bool DeviceDB::queryRadiInfo(int profile, int mode, RadiData &data)
 //  add key rgb color (black removes the color)
 bool DeviceDB::addKeyRGBData(RGBData data)
 {
-    QString group = keyColorsGroup(data.radi_id);
-    if (group.isEmpty())
+    QString setting = colorSetting(data.radi_id, data.key_value);
+    if (setting.isEmpty())
         return false;
-    QString setting = group + "/" + QString::number(data.key_value);
     if (data.r_value == 0 && data.g_value == 0 && data.b_value == 0)
         m_settings.remove(setting);
     else
@@ -276,38 +294,63 @@ bool DeviceDB::addKeyRGBData(RGBData data)
     return store();
 }
 
-// query key rgb color
+// query key rgb color (keys and side LEDs)
 bool DeviceDB::queryKeysRGBData(int radi_id, QVector<RGBData*> &vecdata)
 {
     QString group = keyColorsGroup(radi_id);
     if (group.isEmpty())
         return false;
-    m_settings.beginGroup(group);
-    const QStringList keys = m_settings.childKeys();
-    for (const QString &key : keys)
-    {
-        QColor color(m_settings.value(key).toString());
+
+    auto append = [&](int key_value, const QString &setting) {
+        QColor color(m_settings.value(setting).toString());
 
         RGBData *data = new RGBData;
         data->rgb_id    = 0;
         data->radi_id   = radi_id;
-        data->key_value = key.toInt();
+        data->key_value = key_value;
         data->r_value   = color.red();
         data->g_value   = color.green();
         data->b_value   = color.blue();
         vecdata.push_back(data);
-    }
+    };
+
+    m_settings.beginGroup(group);
+    const QStringList keys = m_settings.childKeys();
     m_settings.endGroup();
+    for (const QString &key : keys)
+        append(key.toInt(), group + "/" + key);
+
+    const QString side_group = sideColorsGroup(radi_id);
+    m_settings.beginGroup(side_group);
+    const QStringList bars = m_settings.childGroups();
+    m_settings.endGroup();
+    for (const QString &bar_key : bars)
+    {
+        std::optional<drevo::LightBar> bar = lightBarFromKey(bar_key);
+        if (!bar)
+            continue;
+
+        const QString bar_group = side_group + "/" + bar_key;
+        m_settings.beginGroup(bar_group);
+        const QStringList indexes = m_settings.childKeys();
+        m_settings.endGroup();
+        for (const QString &index : indexes)
+        {
+            if (std::optional<drevo::SideLed> led = drevo::SideLed::make(*bar, index.toInt()))
+                append(sideLedValue(*led), bar_group + "/" + index);
+        }
+    }
     return true;
 }
 
-// delete key rgb with radi-mode
+// delete key rgb with radi-mode (keys and side LEDs)
 bool DeviceDB::deleteKeyRGBData(int radi_id)
 {
     QString group = keyColorsGroup(radi_id);
     if (group.isEmpty())
         return false;
     m_settings.remove(group);
+    m_settings.remove(sideColorsGroup(radi_id));
     return store();
 }
 

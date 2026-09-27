@@ -4,7 +4,10 @@
 #include <QString>
 #include <QtGlobal>
 
+#include <drevo/Lighting.h>
 #include <drevo/Types.h>
+
+#include <optional>
 
 // settings the user can change in a light mode (brightness can always be changed)
 enum LightSetting
@@ -61,6 +64,46 @@ inline const LightModeInfo *lightModeInfo(const QString &key)
             return &info;
     }
     return nullptr;
+}
+
+// side LEDs in KeyboardModel and RGBData have the key value bar * 100 + index,
+// e.g. 60103 is the 4th LED of the top bar (drevo::LightBar::Top = 601)
+inline int sideLedValue(drevo::SideLed led)
+{
+    return int(led.bar()) * 100 + led.index();
+}
+
+inline std::optional<drevo::SideLed> sideLedFromValue(int value)
+{
+    if (value < 0)
+        return std::nullopt;
+    std::optional<drevo::LightBar> bar = drevo::enumFromValue<drevo::LightBar>(value / 100);
+    if (!bar)
+        return std::nullopt;
+    return drevo::SideLed::make(*bar, value % 100);
+}
+
+// name of a side light bar in the settings file
+inline const char *lightBarKey(drevo::LightBar bar)
+{
+    switch (bar)
+    {
+    case drevo::LightBar::Left:     return "left";
+    case drevo::LightBar::Top:      return "top";
+    case drevo::LightBar::Right:    return "right";
+    case drevo::LightBar::Bottom:   return "bottom";
+    }
+    return "";
+}
+
+inline std::optional<drevo::LightBar> lightBarFromKey(const QString &key)
+{
+    for (drevo::LightBar bar : { drevo::LightBar::Left, drevo::LightBar::Top, drevo::LightBar::Right, drevo::LightBar::Bottom })
+    {
+        if (key == QLatin1String(lightBarKey(bar)))
+            return bar;
+    }
+    return std::nullopt;
 }
 
 #endif // LIGHTMODES_H

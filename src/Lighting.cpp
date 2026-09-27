@@ -81,8 +81,8 @@ QList<drevo::LedColor> toLedColors(const QVector<RGBData*> &vec_data)
             continue;
 
         const drevo::Rgb color { quint8(rgb_data->r_value), quint8(rgb_data->g_value), quint8(rgb_data->b_value) };
-        if (std::optional<drevo::LightBar> bar = drevo::enumFromValue<drevo::LightBar>(rgb_data->key_value))
-            colors.append({ *bar, color });
+        if (std::optional<drevo::SideLed> led = sideLedFromValue(rgb_data->key_value))
+            colors.append({ *led, color });
         else if (std::optional<drevo::Key> key = drevo::Key::fromValue(rgb_data->key_value))
             colors.append({ *key, color });
     }

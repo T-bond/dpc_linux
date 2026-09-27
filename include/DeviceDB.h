@@ -97,6 +97,8 @@ enum KEY_LINUX_DEFINE
 //   light\<mode>\custom_color          true: use color, false: the keyboard's own colors
 //   light\<mode>\color                 #rrggbb
 //   light\custom\keys\<key value>      custom key color (#rrggbb)
+//   light\custom\side\<bar>\<index>    custom side LED color, bar: left, top, right, bottom;
+//                                      index left to right / top to bottom
 //   keys\<key value>\...               key assignment (see KeyData)
 class DeviceDB
 {

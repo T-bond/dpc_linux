@@ -246,14 +246,14 @@ Control {
                 x: 20
                 y: 50
                 text: qsTr("Top side LED")
-                keyValues: [601]
+                keyValues: keyboardModel.sideLedValues(601)
             }
             KeyCheckBox {
                 id: rightLed
                 x: 20
                 y: 80
                 text: qsTr("Right side LED")
-                keyValues: [602]
+                keyValues: keyboardModel.sideLedValues(602)
             }
             KeyCheckBox {
                 id: wasdKeys
@@ -274,14 +274,14 @@ Control {
                 x: 190
                 y: 50
                 text: qsTr("Left side LED")
-                keyValues: [600]
+                keyValues: keyboardModel.sideLedValues(600)
             }
             KeyCheckBox {
                 id: bottomLed
                 x: 190
                 y: 80
                 text: qsTr("Bottom side LED")
-                keyValues: [603]
+                keyValues: keyboardModel.sideLedValues(603)
             }
             KeyCheckBox {
                 id: arrowKeys

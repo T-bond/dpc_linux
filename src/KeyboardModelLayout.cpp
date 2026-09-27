@@ -1,5 +1,7 @@
 #include "KeyboardModel.h"
 
+#include "LightModes.h"
+
 // 初始化键盘按键
 void KeyboardModel::initKeyboardKey()
 {
@@ -417,12 +419,37 @@ void KeyboardModel::initKeyboardKey()
         rcItem.setCoords(xpos,ypos, xpos+key_width, ypos+key_height);
         addKeyItem(("→"), 0x4F, rcItem);
     }
-    // 侧边背光
-    rcItem.setRect(0,0,0,0);
-    addKeyItem(("Left Side backlight"), 600, rcItem);
-    addKeyItem(("Top Side backlight"), 601, rcItem);
-    addKeyItem(("Right Side backlight"), 602, rcItem);
-    addKeyItem(("Bottom Side backlight"), 603, rcItem);
+    // side LEDs, in bars just outside the keyboard image (698 x 256)
+    const int bar = 10;     // thickness
+    const int gap = 3;      // distance from the image
+    addSideLeds(drevo::LightBar::Left, QRect(-gap - bar, 20, bar, 216));
+    addSideLeds(drevo::LightBar::Top, QRect(20, -gap - bar, 658, bar));
+    addSideLeds(drevo::LightBar::Right, QRect(698 + gap, 20, bar, 216));
+    addSideLeds(drevo::LightBar::Bottom, QRect(20, 256 + gap, 658, bar));
+}
+
+// add the LEDs of a side light bar, dividing its rectangle
+void KeyboardModel::addSideLeds(drevo::LightBar bar, const QRect &rect)
+{
+    static const char *const names[] = {
+        QT_TRANSLATE_NOOP("KeyboardModel", "Left side LED %1"),
+        QT_TRANSLATE_NOOP("KeyboardModel", "Top side LED %1"),
+        QT_TRANSLATE_NOOP("KeyboardModel", "Right side LED %1"),
+        QT_TRANSLATE_NOOP("KeyboardModel", "Bottom side LED %1"),
+    };
+    const char *name = names[int(bar) - int(drevo::LightBar::Left)];
+
+    const int count = drevo::ledCount(bar);
+    const bool horizontal = rect.width() > rect.height();
+    const int length = horizontal ? rect.width() : rect.height();
+    for (int i = 0; i < count; i++)
+    {
+        const int start = length * i / count;
+        const int end = length * (i + 1) / count;
+        const QRect led = horizontal ? QRect(rect.x() + start, rect.y(), end - start, rect.height())
+                                     : QRect(rect.x(), rect.y() + start, rect.width(), end - start);
+        addKeyItem(tr(name).arg(i + 1), sideLedValue(*drevo::SideLed::make(bar, i)), led);
+    }
 }
 
 // 添加键
