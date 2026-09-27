@@ -4,7 +4,46 @@
 #include <QSettings>
 #include <QString>
 #include <QVector>
-#include "KeyboardData.h"
+
+// radi light data
+struct RadiData
+{
+    int             radi_id;
+    int             profile_id;
+    int             mode;
+    int             rgb_mode;
+    int             rgb_speed;
+    int             rgb_brightness;
+    int             rgb_direction;
+    int             r_value;
+    int             g_value;
+    int             b_value;
+    int             status;
+};
+
+// key rgb data
+struct RGBData
+{
+    int             rgb_id;
+    int             radi_id;
+    int             key_value;
+    int             r_value;
+    int             g_value;
+    int             b_value;
+};
+
+// key data
+struct KeyData
+{
+    int             key_id;
+    int             profile;
+    int             key_value;
+    int             macro_type;
+    int             macro_value;
+    int             macro_value1;
+    int             macro_value2;
+    QString     macro_name;
+};
 
 // KEY DEFINE
 enum KEY_DEFINE
@@ -51,9 +90,13 @@ enum KEY_LINUX_DEFINE
 //
 //   name                               profile name
 //   report_rate, delay_*               config values
-//   light_mode                         selected light mode
-//   light\<mode>\...                   light mode settings (see RadiData)
-//   light\<mode>\keys\<key value>      custom key color (#rrggbb)
+//   light_mode                         selected light mode (name, see LightModes.h)
+//   light\<mode>\brightness            light mode settings, only the ones the mode has
+//   light\<mode>\speed                 (see LightModes.h); missing ones have their default
+//   light\<mode>\direction
+//   light\<mode>\custom_color          true: use color, false: the keyboard's own colors
+//   light\<mode>\color                 #rrggbb
+//   light\custom\keys\<key value>      custom key color (#rrggbb)
 //   keys\<key value>\...               key assignment (see KeyData)
 class DeviceDB
 {

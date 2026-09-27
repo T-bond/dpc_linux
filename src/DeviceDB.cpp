@@ -1,5 +1,7 @@
 #include "DeviceDB.h"
 
+#include "LightModes.h"
+
 #include <QColor>
 #include <QCoreApplication>
 #include <QDir>
@@ -26,14 +28,19 @@ QString profileGroup(int profile)
 const char *kProfilePrefix = "profile";
 const char *kSelectedProfile = "selected_profile";
 
+// settings of a light mode, empty for an unknown mode
 QString lightGroup(int profile, int mode)
 {
-    return QString("profile%1/light/%2").arg(profile).arg(mode);
+    const LightModeInfo *info = lightModeInfo(mode);
+    if (!info)
+        return QString();
+    return QString("profile%1/light/%2").arg(profile).arg(info->key);
 }
 
 QString keyColorsGroup(int radi_id)
 {
-    return lightGroup(radi_id / 100, radi_id % 100) + "/keys";
+    const QString group = lightGroup(radi_id / 100, radi_id % 100);
+    return group.isEmpty() ? QString() : group + "/keys";
 }
 
 QString keyGroup(int profile, int key_value)
@@ -41,11 +48,12 @@ QString keyGroup(int profile, int key_value)
     return QString("profile%1/keys/%2").arg(profile).arg(key_value);
 }
 
-const char *kLightModeNames[] = {
-    "Static", "Spectrum", "Rainbow", "Power Gauge", "Breathing", "Twinkling Stars",
-    "Reactive", "Marquee", "Aurora", "Icey Fire", "Fn", "Custom",
-};
-const int kLightModeCount = sizeof(kLightModeNames) / sizeof(kLightModeNames[0]);
+// light mode settings that are not stored have these values
+const bool kDefaultCustomColor = false;
+const int kDefaultSpeed = 3;
+const int kDefaultBrightness = 10;
+const int kDefaultDirection = 0;
+const QColor kDefaultColor(255, 225, 0);
 
 } // namespace
 
@@ -183,43 +191,33 @@ bool DeviceDB::updateConfigData(int profile, QString key, QString value)
     return store();
 }
 
-// write radi data
+// write radi data (select the first light mode if none is selected)
 void DeviceDB::writeRadiData(int profile)
 {
-    m_settings.beginGroup(profileGroup(profile) + "/light");
-    bool exists = !m_settings.childGroups().isEmpty();
-    m_settings.endGroup();
-    if (exists)
-        return ;
-
-    for (int mode = 1; mode <= kLightModeCount; mode++)
-    {
-        m_settings.beginGroup(lightGroup(profile, mode));
-        m_settings.setValue("name", kLightModeNames[mode - 1]);
-        m_settings.setValue("rgb_mode", 0);
-        m_settings.setValue("rgb_speed", 3);
-        m_settings.setValue("rgb_brightness", 10);
-        m_settings.setValue("rgb_direction", 0);
-        m_settings.setValue("color", QColor(255, 225, 0).name());
-        m_settings.endGroup();
-    }
-    m_settings.setValue(profileGroup(profile) + "/light_mode", 1);
+    QString setting = profileGroup(profile) + "/light_mode";
+    if (m_settings.contains(setting))
+        return;
+    m_settings.setValue(setting, kLightModes[0].key);
     store();
 }
 
-// modify rgb param
+// modify rgb param (only the settings the mode has)
 bool DeviceDB::modifyRadiRGBData(RadiData &data)
 {
-    QString group = lightGroup(data.profile_id, data.mode);
-    if (!m_settings.contains(group + "/name"))
+    const LightModeInfo *info = lightModeInfo(data.mode);
+    if (!info)
         return false;
 
-    m_settings.beginGroup(group);
-    m_settings.setValue("rgb_mode", data.rgb_mode);
-    m_settings.setValue("rgb_speed", data.rgb_speed);
-    m_settings.setValue("rgb_brightness", data.rgb_brightness);
-    m_settings.setValue("rgb_direction", data.rgb_direction);
-    m_settings.setValue("color", QColor(data.r_value, data.g_value, data.b_value).name());
+    m_settings.beginGroup(lightGroup(data.profile_id, data.mode));
+    m_settings.setValue("brightness", data.rgb_brightness);
+    if (info->has(LightSpeed))
+        m_settings.setValue("speed", data.rgb_speed);
+    if (info->has(LightDirection))
+        m_settings.setValue("direction", data.rgb_direction);
+    if (info->has(LightColorSwitch))
+        m_settings.setValue("custom_color", data.rgb_mode == 1);
+    if (info->has(LightColor))
+        m_settings.setValue("color", QColor(data.r_value, data.g_value, data.b_value).name());
     m_settings.endGroup();
     return store();
 }
@@ -228,34 +226,34 @@ bool DeviceDB::modifyRadiRGBData(RadiData &data)
 bool DeviceDB::setSelectMode(int profile, int mode)
 {
     // an unknown mode leaves no mode selected
-    bool known = m_settings.contains(lightGroup(profile, mode) + "/name");
-    m_settings.setValue(profileGroup(profile) + "/light_mode", known ? mode : 0);
+    const LightModeInfo *info = lightModeInfo(mode);
+    m_settings.setValue(profileGroup(profile) + "/light_mode", info ? info->key : "");
     return store();
 }
 
-// get  select mode with current profile
+// get  select mode with current profile (0 if none)
 int DeviceDB::getSelectMode(int profile)
 {
-    return m_settings.value(profileGroup(profile) + "/light_mode", 0).toInt();
+    const LightModeInfo *info = lightModeInfo(m_settings.value(profileGroup(profile) + "/light_mode").toString());
+    return info ? int(info->mode) : 0;
 }
 
 // query  light data info with profile and mode
 bool DeviceDB::queryRadiInfo(int profile, int mode, RadiData &data)
 {
     QString group = lightGroup(profile, mode);
-    if (!m_settings.contains(group + "/name"))
+    if (group.isEmpty())
         return false;
 
     m_settings.beginGroup(group);
-    QColor color(m_settings.value("color").toString());
+    QColor color(m_settings.value("color", kDefaultColor.name()).toString());
     data.radi_id        = radiId(profile, mode);
     data.profile_id     = profile;
-    data.name           = m_settings.value("name").toString();
     data.mode           = mode;
-    data.rgb_mode       = m_settings.value("rgb_mode").toInt();
-    data.rgb_speed      = m_settings.value("rgb_speed").toInt();
-    data.rgb_brightness = m_settings.value("rgb_brightness").toInt();
-    data.rgb_direction  = m_settings.value("rgb_direction").toInt();
+    data.rgb_mode       = m_settings.value("custom_color", kDefaultCustomColor).toBool() ? 1 : 0;
+    data.rgb_speed      = m_settings.value("speed", kDefaultSpeed).toInt();
+    data.rgb_brightness = m_settings.value("brightness", kDefaultBrightness).toInt();
+    data.rgb_direction  = m_settings.value("direction", kDefaultDirection).toInt();
     data.r_value        = color.red();
     data.g_value        = color.green();
     data.b_value        = color.blue();
@@ -267,7 +265,10 @@ bool DeviceDB::queryRadiInfo(int profile, int mode, RadiData &data)
 //  add key rgb color (black removes the color)
 bool DeviceDB::addKeyRGBData(RGBData data)
 {
-    QString setting = keyColorsGroup(data.radi_id) + "/" + QString::number(data.key_value);
+    QString group = keyColorsGroup(data.radi_id);
+    if (group.isEmpty())
+        return false;
+    QString setting = group + "/" + QString::number(data.key_value);
     if (data.r_value == 0 && data.g_value == 0 && data.b_value == 0)
         m_settings.remove(setting);
     else
@@ -278,7 +279,10 @@ bool DeviceDB::addKeyRGBData(RGBData data)
 // query key rgb color
 bool DeviceDB::queryKeysRGBData(int radi_id, QVector<RGBData*> &vecdata)
 {
-    m_settings.beginGroup(keyColorsGroup(radi_id));
+    QString group = keyColorsGroup(radi_id);
+    if (group.isEmpty())
+        return false;
+    m_settings.beginGroup(group);
     const QStringList keys = m_settings.childKeys();
     for (const QString &key : keys)
     {
@@ -300,7 +304,10 @@ bool DeviceDB::queryKeysRGBData(int radi_id, QVector<RGBData*> &vecdata)
 // delete key rgb with radi-mode
 bool DeviceDB::deleteKeyRGBData(int radi_id)
 {
-    m_settings.remove(keyColorsGroup(radi_id));
+    QString group = keyColorsGroup(radi_id);
+    if (group.isEmpty())
+        return false;
+    m_settings.remove(group);
     return store();
 }
 

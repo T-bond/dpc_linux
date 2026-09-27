@@ -1,34 +1,31 @@
 #include "Lighting.h"
 
 #include "DeviceManager.h"
+#include "LightModes.h"
+
+#include <QDebug>
 
 namespace
 {
 
-struct LightModeItem
+struct DirectionItem
 {
-    int             mode;
-    const char     *text;
-    const char     *icon;
+    drevo::RainbowDirection     direction;
+    const char                 *text;
 };
 
-// light modes in list order
-const LightModeItem kLightModes[] = {
-    { 1,  QT_TRANSLATE_NOOP("Lighting", "Static"),      "icon_light_static" },
-    { 2,  QT_TRANSLATE_NOOP("Lighting", "Spectrum"),    "icon_light_spectrum" },
-    { 3,  QT_TRANSLATE_NOOP("Lighting", "Rainbow"),     "icon_light_rainbow" },
-    { 4,  QT_TRANSLATE_NOOP("Lighting", "Power Gauge"), "icon_light_powergauge" },
-    { 5,  QT_TRANSLATE_NOOP("Lighting", "Breathing"),   "icon_light_breathing" },
-    { 6,  QT_TRANSLATE_NOOP("Lighting", "Twinkling Stars"), "icon_light_twinklingstars" },
-    { 7,  QT_TRANSLATE_NOOP("Lighting", "Reactive"),    "icon_light_reactive" },
-    { 8,  QT_TRANSLATE_NOOP("Lighting", "Marquee"),     "icon_light_marquee" },
-    { 9,  QT_TRANSLATE_NOOP("Lighting", "Aurora"),      "icon_light_aurora" },
-    { 12, QT_TRANSLATE_NOOP("Lighting", "Custom"),      "icon_light_custom" },
+// rainbow directions in list order
+const DirectionItem kDirections[] = {
+    { drevo::RainbowDirection::LeftToRight, QT_TRANSLATE_NOOP("Lighting", "Left to right") },
+    { drevo::RainbowDirection::RightToLeft, QT_TRANSLATE_NOOP("Lighting", "Right to left") },
+    { drevo::RainbowDirection::DownToUp,    QT_TRANSLATE_NOOP("Lighting", "Down to up") },
+    { drevo::RainbowDirection::UpToDown,    QT_TRANSLATE_NOOP("Lighting", "Up to down") },
 };
-const int kLightModeCount = sizeof(kLightModes) / sizeof(kLightModes[0]);
 
-const int LM_STATIC = 1;
-const int LM_CUSTOM = 12;
+const int kLightModeCount = int(std::size(kLightModes));
+
+const int LM_STATIC = int(drevo::LightMode::Static);
+const int LM_CUSTOM = int(drevo::LightMode::Custom);
 
 const QColor kDefaultLightColor(255, 225, 0, 255);
 
@@ -37,7 +34,7 @@ int getLightModeByIndex(int index)
 {
     if (index < 0 || index >= kLightModeCount)
         return LM_STATIC;
-    return kLightModes[index].mode;
+    return int(kLightModes[index].mode);
 }
 
 // get list index by light mode
@@ -45,7 +42,7 @@ int getIndexByLightMode(int mode)
 {
     for (int i = 0; i < kLightModeCount; i++)
     {
-        if (kLightModes[i].mode == mode)
+        if (int(kLightModes[i].mode) == mode)
             return i;
     }
     return 1;
@@ -54,6 +51,42 @@ int getIndexByLightMode(int mode)
 QColor radiColor(const RadiData &data)
 {
     return QColor(data.r_value, data.g_value, data.b_value, 255);
+}
+
+// stored light mode settings as a keyboard effect, empty if the mode is unknown
+std::optional<drevo::LightingEffect> toEffect(const RadiData &data)
+{
+    std::optional<drevo::LightMode> mode = drevo::enumFromValue<drevo::LightMode>(data.mode);
+    if (!mode)
+        return std::nullopt;
+
+    drevo::LightingEffect effect;
+    effect.mode = *mode;
+    effect.brightness = drevo::Brightness::clamped(data.rgb_brightness);
+    effect.speed = drevo::Speed::clamped(data.rgb_speed);
+    effect.useColor = data.rgb_mode == 1;
+    effect.color = { quint8(data.r_value), quint8(data.g_value), quint8(data.b_value) };
+    effect.direction = drevo::enumFromValue<drevo::RainbowDirection>(data.rgb_direction)
+                           .value_or(drevo::RainbowDirection::RightToLeft);
+    return effect;
+}
+
+// stored key colors as keyboard LED colors; unknown keys are skipped
+QList<drevo::LedColor> toLedColors(const QVector<RGBData*> &vec_data)
+{
+    QList<drevo::LedColor> colors;
+    for (const RGBData *rgb_data : vec_data)
+    {
+        if (!rgb_data)
+            continue;
+
+        const drevo::Rgb color { quint8(rgb_data->r_value), quint8(rgb_data->g_value), quint8(rgb_data->b_value) };
+        if (std::optional<drevo::LightBar> bar = drevo::enumFromValue<drevo::LightBar>(rgb_data->key_value))
+            colors.append({ *bar, color });
+        else if (std::optional<drevo::Key> key = drevo::Key::fromValue(rgb_data->key_value))
+            colors.append({ *key, color });
+    }
+    return colors;
 }
 
 } // namespace
@@ -73,6 +106,7 @@ Lighting::Lighting(QObject *parent)
     m_color = kDefaultLightColor;
     m_custom_color_visible = true;
     m_custom_color = false;
+    m_direction = drevo::RainbowDirection::RightToLeft;
     m_light_color = kDefaultLightColor;
 
     // "lights off" ended from the tray: send the lighting of the profile again
@@ -122,7 +156,7 @@ void Lighting::setKeyboard(KeyboardModel *keyboard)
 QVariantList Lighting::modes() const
 {
     QVariantList list;
-    for (const LightModeItem &item : kLightModes)
+    for (const LightModeInfo &item : kLightModes)
     {
         list.append(QVariantMap {
             { "text", tr(item.text) },
@@ -167,6 +201,36 @@ void Lighting::setBrightness(int value)
     updateRadiData(data);
 }
 
+bool Lighting::directionVisible() const
+{
+    return m_current_mode == int(drevo::LightMode::Rainbow);
+}
+
+QVariantList Lighting::directions() const
+{
+    QVariantList list;
+    for (const DirectionItem &item : kDirections)
+        list.append(QVariantMap { { "value", int(item.direction) }, { "text", tr(item.text) } });
+    return list;
+}
+
+void Lighting::setDirection(int value)
+{
+    std::optional<drevo::RainbowDirection> direction = drevo::enumFromValue<drevo::RainbowDirection>(value);
+    if (!direction)
+        return;
+
+    m_direction = *direction;
+    emit settingsChanged();
+
+    RadiData data;
+    if (!currentRadiData(data))
+        return;
+
+    data.rgb_direction = value;
+    updateRadiData(data);
+}
+
 void Lighting::setSpeed(int value)
 {
     m_speed = value;
@@ -202,9 +266,7 @@ void Lighting::setColor(const QColor &color)
     if (!dev_db->modifyRadiRGBData(data))
         return;
 
-    uint8_t  kb_data[8] = {0};
-    hid_getRadiData(data, kb_data);
-    sendPacket(kb_data, 8);
+    sendEffect(data);
 
     m_color = radiColor(data);
     if (m_current_mode != LM_CUSTOM)
@@ -285,64 +347,34 @@ void Lighting::setBackLightMode(int light_mode)
     m_current_mode = light_mode;
     emit modeChanged();
 
-    uint8_t  kb_data[8] = {0};
-    hid_getRadiData(data, kb_data);
-    sendPacket(kb_data, 8);
+    sendEffect(data);
 
     m_brightness = data.rgb_brightness;
+    m_direction = drevo::enumFromValue<drevo::RainbowDirection>(data.rgb_direction)
+                      .value_or(drevo::RainbowDirection::RightToLeft);
 
-    if (light_mode == 1 || light_mode == 12)
+    const LightModeInfo *info = lightModeInfo(light_mode);
+    if (!info)
     {
-        m_speed = 0;
-        m_speed_enabled = false;
-        m_color_visible = true;
-        m_color = radiColor(data);
-        m_custom_color = data.rgb_mode == 1;
-
-        if (light_mode == 12)
-        {
-            m_custom_color_visible = false;
-            m_color_enabled = true;
-            emit settingsChanged();
-
-            sendKeyRGBData(data.radi_id, true);
-        }
-        else
-        {
-            m_custom_color_visible = true;
-            m_color_enabled = data.rgb_mode == 1;
-            emit settingsChanged();
-
-            setLightColor(radiColor(data));
-        }
-    }
-    else if (light_mode == 2 || light_mode == 3 || light_mode == 4 || light_mode == 8)
-    {
-        m_speed = data.rgb_speed;
-        m_speed_enabled = true;
-        m_color_visible = false;
-        m_custom_color_visible = false;
         emit settingsChanged();
-
-        setLightColor(kDefaultLightColor);
+        return;
     }
-    else if (light_mode == 5 || light_mode == 6 || light_mode == 7 || light_mode == 9)
-    {
-        m_speed = data.rgb_speed;
-        m_speed_enabled = true;
-        m_color_visible = true;
-        m_custom_color_visible = true;
+
+    m_speed_enabled = info->has(LightSpeed);
+    m_speed = m_speed_enabled ? data.rgb_speed : 0;
+    m_color_visible = info->has(LightColor);
+    m_custom_color_visible = info->has(LightColorSwitch);
+    m_custom_color = data.rgb_mode == 1;
+    // without the switch, a mode with a color always uses it
+    m_color_enabled = !m_custom_color_visible || m_custom_color;
+    if (m_color_visible)
         m_color = radiColor(data);
-        m_custom_color = data.rgb_mode == 1;
-        m_color_enabled = data.rgb_mode == 1;
-        emit settingsChanged();
+    emit settingsChanged();
 
-        setLightColor(radiColor(data));
-    }
+    if (light_mode == LM_CUSTOM)
+        sendKeyRGBData(data.radi_id, true);
     else
-    {
-        emit settingsChanged();
-    }
+        setLightColor(m_color_visible ? radiColor(data) : kDefaultLightColor);
 }
 
 // query the data of the current mode
@@ -357,9 +389,7 @@ void Lighting::updateRadiData(RadiData &data)
     if (!DeviceManager::instance()->db()->modifyRadiRGBData(data))
         return;
 
-    uint8_t  kb_data[8] = {0};
-    hid_getRadiData(data, kb_data);
-    sendPacket(kb_data, 8);
+    sendEffect(data);
 }
 
 // send the key colors of the custom mode to the keyboard
@@ -369,10 +399,9 @@ void Lighting::sendKeyRGBData(int radi_id, bool update_keyboard)
     DeviceManager::instance()->db()->queryKeysRGBData(radi_id, vec_data);
 
     // key positions differ per layout; the widget UI always sent the 87-key layout
-    int kb_layout = DeviceManager::instance()->comm()->getKeyboardLayout();
-    uint8_t kb_data[408] = {0};
-    hid_getKeyRGBData(vec_data, kb_layout, kb_data);
-    sendPacket(kb_data, 408);
+    DeviceManager *device = DeviceManager::instance();
+    device->keyboard()->setLedColors(toLedColors(vec_data));
+    device->lightingSent();
 
     for (RGBData *rgb_data : vec_data)
     {
@@ -385,14 +414,17 @@ void Lighting::sendKeyRGBData(int radi_id, bool update_keyboard)
     }
 }
 
-// send lighting data; it ends "lights off"
-void Lighting::sendPacket(const uint8_t *kb_data, size_t length)
+// send the effect of a light mode; it ends "lights off"
+void Lighting::sendEffect(const RadiData &data)
 {
+    std::optional<drevo::LightingEffect> effect = toEffect(data);
+    if (!effect)
+    {
+        qWarning() << "unknown light mode, not sent:" << data.mode;
+        return;
+    }
     DeviceManager *device = DeviceManager::instance();
-    if (length > 8)
-        device->comm()->setDeviceDatas(kb_data, length);
-    else
-        device->comm()->setDeviceData(kb_data, length);
+    device->keyboard()->setLighting(*effect);
     device->lightingSent();
 }
 

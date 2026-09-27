@@ -7,8 +7,10 @@
 #include <QQmlParserStatus>
 #include <QtQml/qqmlregistration.h>
 
-#include "KeyboardData.h"
+#include "DeviceDB.h"
 #include "KeyboardModel.h"
+
+#include <drevo/Types.h>
 
 // backlight effects (radi-light) of the keyboard
 class Lighting : public QObject, public QQmlParserStatus
@@ -37,6 +39,13 @@ class Lighting : public QObject, public QQmlParserStatus
     Q_PROPERTY(bool customColorVisible READ customColorVisible NOTIFY settingsChanged)
     Q_PROPERTY(bool customColor READ customColor NOTIFY settingsChanged)
 
+    // rainbow direction selection, only in the rainbow mode
+    Q_PROPERTY(bool directionVisible READ directionVisible NOTIFY modeChanged)
+    // rainbow directions: [{ value, text }]
+    Q_PROPERTY(QVariantList directions READ directions CONSTANT)
+    // drevo::RainbowDirection value
+    Q_PROPERTY(int direction READ direction NOTIFY settingsChanged)
+
     // color of the whole keyboard (all modes except custom)
     Q_PROPERTY(QColor lightColor READ lightColor NOTIFY lightColorChanged)
 
@@ -61,12 +70,17 @@ public:
     QColor color() const { return m_color; }
     bool customColorVisible() const { return m_custom_color_visible; }
     bool customColor() const { return m_custom_color; }
+    bool directionVisible() const;
+    QVariantList directions() const;
+    int direction() const { return int(m_direction); }
     QColor lightColor() const { return m_light_color; }
 
     // select the light mode at a list index
     Q_INVOKABLE void selectModeIndex(int index);
     Q_INVOKABLE void setBrightness(int value);
     Q_INVOKABLE void setSpeed(int value);
+    // set the rainbow direction (a drevo::RainbowDirection value, others are ignored)
+    Q_INVOKABLE void setDirection(int value);
     // set the effect color and switch custom color on, or the color of the checked keys in custom mode
     Q_INVOKABLE void setColor(const QColor &color);
     Q_INVOKABLE void setCustomColor(bool custom_color);
@@ -91,8 +105,8 @@ private:
     // send the key colors of the custom mode to the keyboard
     void sendKeyRGBData(int radi_id, bool update_keyboard);
     void setLightColor(const QColor &color);
-    // send lighting data; it ends "lights off"
-    void sendPacket(const uint8_t *kb_data, size_t length);
+    // send the effect of a light mode; it ends "lights off"
+    void sendEffect(const RadiData &data);
 
     QPointer<KeyboardModel>     m_keyboard;
 
@@ -108,6 +122,7 @@ private:
     QColor      m_color;
     bool        m_custom_color_visible;
     bool        m_custom_color;
+    drevo::RainbowDirection m_direction;
     QColor      m_light_color;
 };
 

@@ -7,8 +7,9 @@
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
-#include "DeviceComm.h"
 #include "DeviceDB.h"
+
+#include <drevo/Keyboard.h>
 
 class QQmlEngine;
 class QJSEngine;
@@ -28,8 +29,6 @@ class DeviceManager : public QObject
     // why settings cannot be stored, empty if they can
     Q_PROPERTY(QString databaseError READ databaseError CONSTANT)
 
-    // key layout of the connected keyboard (1: 87 keys, 2: 88 keys ISO, 4: 91 keys JIS)
-    Q_PROPERTY(int keyboardLayout READ keyboardLayout CONSTANT)
     // regional variants of the layout: [{ value, text }], empty if it has none
     Q_PROPERTY(QVariantList keyboardRegions READ keyboardRegions CONSTANT)
     // selected regional variant, the keyboard does not report it
@@ -69,7 +68,8 @@ public:
     void writeKeyDefault(int key_value);
     QString databaseError() const { return m_database_error; }
 
-    int keyboardLayout() const { return m_device_comm.getKeyboardLayout(); }
+    // key layout of the connected keyboard
+    drevo::Layout keyboardLayout() const { return m_keyboard.layout(); }
     QVariantList keyboardRegions() const;
     QString keyboardRegion() const { return m_keyboard_region; }
     void setKeyboardRegion(const QString &region);
@@ -84,7 +84,7 @@ public:
     // lighting data was sent to the keyboard, the lights are on
     void lightingSent();
 
-    DeviceComm* comm() { return &m_device_comm; }
+    drevo::Keyboard* keyboard() { return &m_keyboard; }
     DeviceDB* db() { return &m_dev_db; }
 
 signals:
@@ -100,7 +100,7 @@ signals:
 private:
     static DeviceManager*       s_instance;
 
-    DeviceComm                  m_device_comm;
+    drevo::Keyboard             m_keyboard;
     DeviceDB                    m_dev_db;
     QString                     m_device_name;
     QString                     m_database_error;
@@ -111,6 +111,8 @@ private:
 
     // key values with an assignment in a profile
     QVector<int> assignedKeys(int profile);
+    // title for the result of opening the keyboard
+    QString connectionText(drevo::ConnectionState state) const;
 };
 
 #endif // DEVICEMANAGER_H

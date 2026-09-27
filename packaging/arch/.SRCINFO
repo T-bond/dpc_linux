@@ -1,0 +1,24 @@
+pkgbase = drevo-power-console-qt6-git
+	pkgdesc = Configuration tool for DREVO keyboards (key assignments, lighting, settings)
+	pkgver = r0.0000000
+	pkgrel = 1
+	url = https://github.com/T-bond/dpc_linux
+	install = drevo-power-console.install
+	arch = x86_64
+	arch = aarch64
+	license = unknown
+	makedepends = git
+	makedepends = cmake
+	makedepends = qt6-tools
+	depends = qt6-base
+	depends = qt6-declarative
+	depends = libusb
+	optdepends = qt6-translations: translated Qt dialog buttons
+	provides = drevo-power-console
+	conflicts = drevo-power-console
+	conflicts = drevo-power-console-git
+	options = !debug
+	source = drevo-power-console-qt6-git::git+file:///mnt/projects/Own/Drevo Power Console
+	sha256sums = SKIP
+
+pkgname = drevo-power-console-qt6-git

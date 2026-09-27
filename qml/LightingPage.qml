@@ -142,6 +142,36 @@ Control {
             onMoved: lighting.setSpeed(value)
         }
 
+        // rainbow direction, in place of the color settings (the rainbow has no color)
+        Label {
+            x: 10
+            y: 140
+            visible: lighting.directionVisible
+            text: qsTr("Direction")
+            color: palette.text
+        }
+        ComboBox {
+            id: directionCombo
+            x: 10
+            y: 165
+            width: 200
+            height: 25
+            visible: lighting.directionVisible
+            model: lighting.directions
+            textRole: "text"
+            valueRole: "value"
+            onActivated: lighting.setDirection(currentValue)
+            Component.onCompleted: currentIndex = indexOfValue(lighting.direction)
+
+            // selecting an item breaks a binding, so follow the setting explicitly
+            Connections {
+                target: lighting
+                function onSettingsChanged() {
+                    directionCombo.currentIndex = directionCombo.indexOfValue(lighting.direction)
+                }
+            }
+        }
+
         // custom color switch, its label toggles it too
         CheckBox {
             x: 10

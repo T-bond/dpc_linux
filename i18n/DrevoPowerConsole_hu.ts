@@ -67,43 +67,40 @@
     </message>
 </context>
 <context>
-    <name>DeviceComm</name>
-    <message>
-        <location filename="../src/DeviceComm.cpp" line="30"/>
-        <source>CONNECT YOUR DEVICE</source>
-        <translation>CSATLAKOZTASSA AZ ESZKÖZT</translation>
-    </message>
-    <message>
-        <location filename="../src/DeviceComm.cpp" line="73"/>
-        <source> (in use by another program)</source>
-        <translation> (egy másik program használja)</translation>
-    </message>
-    <message>
-        <location filename="../src/DeviceComm.cpp" line="80"/>
-        <source> (no access, see the udev rule in the README)</source>
-        <translation> (nincs hozzáférés, lásd a udev-szabályt a README-ben)</translation>
-    </message>
-</context>
-<context>
     <name>DeviceDB</name>
     <message>
-        <location filename="../src/DeviceDB.cpp" line="79"/>
+        <location filename="../src/DeviceDB.cpp" line="87"/>
         <source>The settings file %1 is not writable, so changes cannot be saved or sent to the keyboard. It was probably created by running the program as root; make it writable, e.g. with: sudo chown -R $USER &quot;%2&quot;</source>
         <translation>A(z) %1 beállításfájl nem írható, ezért a változások nem menthetők és nem küldhetők el a billentyűzetre. Valószínűleg a program rootként való futtatásakor jött létre; tegye írhatóvá, például ezzel: sudo chown -R $USER &quot;%2&quot;</translation>
     </message>
     <message>
-        <location filename="../src/DeviceDB.cpp" line="107"/>
+        <location filename="../src/DeviceDB.cpp" line="115"/>
         <source>Default</source>
         <translation>Alapértelmezett</translation>
     </message>
     <message>
-        <location filename="../src/DeviceDB.cpp" line="108"/>
+        <location filename="../src/DeviceDB.cpp" line="116"/>
         <source>Profile %1</source>
         <translation>%1. profil</translation>
     </message>
 </context>
 <context>
     <name>DeviceManager</name>
+    <message>
+        <location filename="../src/DeviceManager.cpp" line="299"/>
+        <source>CONNECT YOUR DEVICE</source>
+        <translation>CSATLAKOZTASSA AZ ESZKÖZT</translation>
+    </message>
+    <message>
+        <location filename="../src/DeviceManager.cpp" line="305"/>
+        <source> (in use by another program)</source>
+        <translation> (egy másik program használja)</translation>
+    </message>
+    <message>
+        <location filename="../src/DeviceManager.cpp" line="304"/>
+        <source> (no access, see the udev rule in the README)</source>
+        <translation> (nincs hozzáférés, lásd a udev-szabályt a README-ben)</translation>
+    </message>
     <message>
         <location filename="../src/DeviceManager.cpp" line="20"/>
         <source>English (UK)</source>
@@ -283,54 +280,74 @@
 <context>
     <name>Lighting</name>
     <message>
-        <location filename="../src/Lighting.cpp" line="17"/>
+        <location filename="../include/LightModes.h" line="31"/>
         <source>Static</source>
         <translation>Statikus</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="18"/>
+        <location filename="../include/LightModes.h" line="32"/>
         <source>Spectrum</source>
         <translation>Spektrum</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="19"/>
+        <location filename="../include/LightModes.h" line="33"/>
         <source>Rainbow</source>
         <translation>Szivárvány</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="20"/>
+        <location filename="../include/LightModes.h" line="34"/>
         <source>Power Gauge</source>
         <translation>Teljesítményjelző</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="21"/>
+        <location filename="../include/LightModes.h" line="35"/>
         <source>Breathing</source>
         <translation>Lélegzés</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="22"/>
+        <location filename="../include/LightModes.h" line="36"/>
         <source>Twinkling Stars</source>
         <translation>Csillogó csillagok</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="23"/>
+        <location filename="../include/LightModes.h" line="37"/>
         <source>Reactive</source>
         <translation>Reaktív</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="24"/>
+        <location filename="../include/LightModes.h" line="38"/>
         <source>Marquee</source>
         <translation>Futófény</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="25"/>
+        <location filename="../include/LightModes.h" line="39"/>
         <source>Aurora</source>
         <translation>Sarki fény</translation>
     </message>
     <message>
-        <location filename="../src/Lighting.cpp" line="26"/>
+        <location filename="../include/LightModes.h" line="41"/>
         <source>Custom</source>
         <translation>Egyéni</translation>
+    </message>
+    <message>
+        <location filename="../src/Lighting.cpp" line="19"/>
+        <source>Left to right</source>
+        <translation>Balról jobbra</translation>
+    </message>
+    <message>
+        <location filename="../src/Lighting.cpp" line="20"/>
+        <source>Right to left</source>
+        <translation>Jobbról balra</translation>
+    </message>
+    <message>
+        <location filename="../src/Lighting.cpp" line="21"/>
+        <source>Down to up</source>
+        <translation>Lentről felfelé</translation>
+    </message>
+    <message>
+        <location filename="../src/Lighting.cpp" line="22"/>
+        <source>Up to down</source>
+        <translation>Fentről lefelé</translation>
     </message>
 </context>
 <context>
@@ -351,58 +368,63 @@
         <translation>Sebesség</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="153"/>
-        <location filename="../qml/LightingPage.qml" line="162"/>
+        <location filename="../qml/LightingPage.qml" line="150"/>
+        <source>Direction</source>
+        <translation>Irány</translation>
+    </message>
+    <message>
+        <location filename="../qml/LightingPage.qml" line="183"/>
+        <location filename="../qml/LightingPage.qml" line="192"/>
         <source>Custom color</source>
         <translation>Egyéni szín</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="207"/>
+        <location filename="../qml/LightingPage.qml" line="237"/>
         <source>Select all</source>
         <translation>Összes kijelölése</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="218"/>
+        <location filename="../qml/LightingPage.qml" line="248"/>
         <source>Top side LED</source>
         <translation>Felső LED-ek</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="225"/>
+        <location filename="../qml/LightingPage.qml" line="255"/>
         <source>Right side LED</source>
         <translation>Jobb oldali LED-ek</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="239"/>
+        <location filename="../qml/LightingPage.qml" line="269"/>
         <source>Number row</source>
         <translation>Számsor</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="246"/>
+        <location filename="../qml/LightingPage.qml" line="276"/>
         <source>Left side LED</source>
         <translation>Bal oldali LED-ek</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="253"/>
+        <location filename="../qml/LightingPage.qml" line="283"/>
         <source>Bottom side LED</source>
         <translation>Alsó LED-ek</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="260"/>
+        <location filename="../qml/LightingPage.qml" line="290"/>
         <source>Arrows</source>
         <translation>Nyilak</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="267"/>
+        <location filename="../qml/LightingPage.qml" line="297"/>
         <source>Functions</source>
         <translation>Funkcióbillentyűk</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="277"/>
+        <location filename="../qml/LightingPage.qml" line="307"/>
         <source>Reset all LEDs</source>
         <translation>LED-ek visszaállítása</translation>
     </message>
     <message>
-        <location filename="../qml/LightingPage.qml" line="287"/>
+        <location filename="../qml/LightingPage.qml" line="317"/>
         <source>Color Select</source>
         <translation>Színválasztás</translation>
     </message>

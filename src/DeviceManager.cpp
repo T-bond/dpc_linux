@@ -26,6 +26,40 @@ const KeyboardRegion kRegions88[] = {
     { "kr",  QT_TRANSLATE_NOOP("DeviceManager", "Korean") },
 };
 
+// stored key assignment as a keyboard action, empty if it is invalid
+std::optional<drevo::KeyAction> toKeyAction(const KeyData &data)
+{
+    auto combo = [&data]() -> std::optional<drevo::KeyAction> {
+        std::optional<drevo::Usage> target = drevo::Usage::fromValue(data.macro_value);
+        std::optional<drevo::Modifier> first = drevo::enumFromValue<drevo::Modifier>(data.macro_value1);
+        std::optional<drevo::Modifier> second = drevo::enumFromValue<drevo::Modifier>(data.macro_value2);
+        if (!target || !first || !second)
+            return std::nullopt;
+        return drevo::ComboAction { *target, *first, *second };
+    };
+
+    switch (data.macro_type)
+    {
+    case KEY_REALVALUE:
+        return drevo::DefaultAction {};
+    case KEY_DISABLE:
+        return drevo::DisableAction {};
+    case KEY_REDEFINEVALUE:
+    case KEY_LINUX:
+        return combo();
+    case KEY_MOUSE:
+        if (std::optional<drevo::MouseAction> mouse = drevo::enumFromValue<drevo::MouseAction>(data.macro_value))
+            return *mouse;
+        return std::nullopt;
+    case KEY_MULTIMEDIA:
+        if (std::optional<drevo::MediaAction> media = drevo::enumFromValue<drevo::MediaAction>(data.macro_value))
+            return *media;
+        return std::nullopt;
+    default:
+        return std::nullopt;
+    }
+}
+
 const char *kRegionSetting = "keyboard/region";
 const char *kCloseToTraySetting = "window/close_to_tray";
 
@@ -38,7 +72,7 @@ DeviceManager::DeviceManager(QObject *parent)
     s_instance = this;
 
     // find drevo device
-    m_device_name = m_device_comm.enumerateDevice();
+    m_device_name = connectionText(m_keyboard.open());
 
     QVector<int> ids = m_dev_db.profiles();
     m_current_profile = m_dev_db.selectedProfile();
@@ -63,7 +97,7 @@ DeviceManager::~DeviceManager()
 QVariantList DeviceManager::keyboardRegions() const
 {
     QVariantList regions;
-    if (keyboardLayout() != 2)
+    if (keyboardLayout() != drevo::Layout::Iso88)
         return regions;
 
     for (const KeyboardRegion &region : kRegions88)
@@ -99,19 +133,7 @@ void DeviceManager::setLightsOff(bool lights_off)
     if (lights_off)
     {
         // static mode, custom color black, brightness 0 (not stored in the profile)
-        RadiData data;
-        data.mode = 1;
-        data.rgb_mode = 1;
-        data.rgb_speed = 0;
-        data.rgb_brightness = 0;
-        data.rgb_direction = 0;
-        data.r_value = 0;
-        data.g_value = 0;
-        data.b_value = 0;
-
-        uint8_t kb_data[8] = {0};
-        hid_getRadiData(data, kb_data);
-        m_device_comm.setDeviceData(kb_data, 8);
+        m_keyboard.setLighting(drevo::LightingEffect::off());
 
         m_lights_off = true;
         emit lightsOffChanged();
@@ -137,18 +159,19 @@ QUrl DeviceManager::keyboardImage() const
 {
     switch (keyboardLayout())
     {
-    case 2:
+    case drevo::Layout::Iso88:
         for (const KeyboardRegion &region : kRegions88)
         {
             if (m_keyboard_region == region.value)
                 return QUrl(QString("qrc:/image/keyboard/img_keyboard_88%1.png").arg(region.value));
         }
         return QUrl(QString("qrc:/image/keyboard/img_keyboard_88%1.png").arg(kRegions88[0].value));
-    case 4:
+    case drevo::Layout::Jis91:
         return QUrl("qrc:/image/keyboard/img_keyboard_91.png");
-    default:
-        return QUrl("qrc:/image/keyboard/img_keyboard_87.png");
+    case drevo::Layout::Tkl87:
+        break;
     }
+    return QUrl("qrc:/image/keyboard/img_keyboard_87.png");
 }
 
 QVariantList DeviceManager::profiles() const
@@ -235,49 +258,22 @@ void DeviceManager::removeProfile(int profile)
 // write a key assignment of the current profile to the keyboard
 void DeviceManager::writeKeyData(const KeyData &data)
 {
-    int key_value = data.key_value;
-    // the knob (500..503) always sends keyboard functions as combo keys
-    bool knob = key_value >= 500 && key_value <= 503;
-
-    int kb_layout = m_device_comm.getKeyboardLayout();
-    uint8_t kb_data[256] = {0}; //  data length is 256
-    if (data.macro_type == KEY_REALVALUE)
+    std::optional<drevo::Key> key = drevo::Key::fromValue(data.key_value);
+    std::optional<drevo::KeyAction> action = toKeyAction(data);
+    if (!key || !action)
     {
-        hid_keyDefaultValue(key_value, kb_layout, kb_data);
+        qWarning() << "invalid key assignment, not written: key" << data.key_value << "type" << data.macro_type
+                   << "values" << data.macro_value << data.macro_value1 << data.macro_value2;
+        return;
     }
-    else if (data.macro_type == KEY_DISABLE)
-    {
-        hid_disablekeyValue(key_value, kb_layout, kb_data);
-    }
-    else if (data.macro_type == KEY_REDEFINEVALUE)
-    {
-        if (!knob && data.macro_value1 == 0 && data.macro_value2 == 0)
-            hid_keyRemapData(key_value, data.macro_value, kb_layout, kb_data);
-        else
-            hid_combokeyData(key_value, data.macro_value1, data.macro_value2, data.macro_value, kb_layout, kb_data);
-    }
-    else if (data.macro_type == KEY_MOUSE)
-    {
-        hid_combokeyData(key_value, 0, 0, data.macro_value, kb_layout, kb_data);
-    }
-    else if (data.macro_type == KEY_MULTIMEDIA)
-    {
-        hid_keyRemapData(key_value, data.macro_value, kb_layout, kb_data);
-    }
-    else if (data.macro_type == KEY_LINUX)
-    {
-        hid_combokeyData(key_value, data.macro_value1, data.macro_value2, data.macro_value, kb_layout, kb_data);
-    }
-    m_device_comm.setDeviceDatas(kb_data, 256);
+    m_keyboard.setKeyAction(*key, *action);
 }
 
 // write the default function of a key to the keyboard
 void DeviceManager::writeKeyDefault(int key_value)
 {
-    int kb_layout = m_device_comm.getKeyboardLayout();
-    uint8_t kb_data[256] = {0}; //  data length is 256
-    hid_keyDefaultValue(key_value, kb_layout, kb_data);
-    m_device_comm.setDeviceDatas(kb_data, 256);
+    if (std::optional<drevo::Key> key = drevo::Key::fromValue(key_value))
+        m_keyboard.resetKey(*key);
 }
 
 // key values with an assignment in a profile
@@ -294,6 +290,22 @@ QVector<int> DeviceManager::assignedKeys(int profile)
         delete data;
     }
     return keys;
+}
+
+// title for the result of opening the keyboard
+QString DeviceManager::connectionText(drevo::ConnectionState state) const
+{
+    if (!m_keyboard.device())
+        return tr("CONNECT YOUR DEVICE");
+
+    QString name = m_keyboard.device()->name;
+    switch (state)
+    {
+    case drevo::ConnectionState::NoAccess:  name.append(tr(" (no access, see the udev rule in the README)")); break;
+    case drevo::ConnectionState::Busy:      name.append(tr(" (in use by another program)")); break;
+    default:                                break;
+    }
+    return name;
 }
 
 DeviceManager* DeviceManager::create(QQmlEngine *, QJSEngine *)

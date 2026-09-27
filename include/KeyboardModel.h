@@ -65,8 +65,9 @@ public:
     Q_INVOKABLE void setAllKeyCheck(bool key_check);
     // check only the key at index
     Q_INVOKABLE void checkOnly(int index);
-    // add the key at index to the checked keys
-    Q_INVOKABLE void addCheck(int index);
+    // check or uncheck the key at index, other keys keep their check
+    Q_INVOKABLE void setCheck(int index, bool key_check);
+    Q_INVOKABLE bool isChecked(int index) const;
 
     // set key color
     Q_INVOKABLE void setKeyColor(int key_value, const QColor &color);

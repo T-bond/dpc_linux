@@ -131,8 +131,12 @@ Item {
             root.selectedIndex = index
             if (root.mode === KeyboardModel.CustomKey)
                 root.keyPressed(index)
-            else if (mouse.modifiers & Qt.ShiftModifier)
-                root.keyboard.addCheck(index)
+            // clicking a checked key again unchecks it
+            else if (root.keyboard.isChecked(index))
+                root.keyboard.setCheck(index, false)
+            // Shift or Ctrl adds to the checked keys
+            else if (mouse.modifiers & (Qt.ShiftModifier | Qt.ControlModifier))
+                root.keyboard.setCheck(index, true)
             else
                 root.keyboard.checkOnly(index)
         }

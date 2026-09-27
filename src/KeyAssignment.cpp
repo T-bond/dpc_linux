@@ -191,28 +191,28 @@ KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int
     {
         switch (macro_value)
         {
-        case KEY_MOUSE_LEFT:        data.macro_value = 0xA5;    break;
-        case KEY_MOUSE_MIDDLE:      data.macro_value = 0xA7;    break;
-        case KEY_MOUSE_RIGHT:       data.macro_value = 0xA6;    break;
-        case KEY_MOUSE_SCROLLUP:    data.macro_value = 0xA8;    break;
-        case KEY_MOUSE_SCROLLDOWN:  data.macro_value = 0xA8;    break;
-        case KEY_MOUSE_BUTTON4:     data.macro_value = 0xA9;    break;
-        case KEY_MOUSE_BUTTON5:     data.macro_value = 0xAA;    break;
-        default:                                                break;
+        case KEY_MOUSE_LEFT:        data.macro_value = int(drevo::MouseAction::LeftClick);     break;
+        case KEY_MOUSE_MIDDLE:      data.macro_value = int(drevo::MouseAction::MiddleClick);   break;
+        case KEY_MOUSE_RIGHT:       data.macro_value = int(drevo::MouseAction::RightClick);    break;
+        case KEY_MOUSE_SCROLLUP:    data.macro_value = int(drevo::MouseAction::Scroll);        break;
+        case KEY_MOUSE_SCROLLDOWN:  data.macro_value = int(drevo::MouseAction::Scroll);        break;
+        case KEY_MOUSE_BUTTON4:     data.macro_value = int(drevo::MouseAction::Button4);       break;
+        case KEY_MOUSE_BUTTON5:     data.macro_value = int(drevo::MouseAction::Button5);       break;
+        default:                                                                        break;
         }
     }
     else if (macro_type == KEY_MULTIMEDIA)
     {
         switch (macro_value)
         {
-        case KEY_MEDIA_PLAYPAUSE:   data.macro_value = 0xF2;    break;
-        case KEY_MEDIA_STOP:        data.macro_value = 0xF4;    break;
-        case KEY_MEDIA_PREVIOUS:    data.macro_value = 0xF1;    break;
-        case KEY_MEDIA_NEXT:        data.macro_value = 0xF3;    break;
-        case KEY_MEDIA_VOL_SILENT:  data.macro_value = 0xEA;    break;
-        case KEY_MEDIA_VOL_UP:      data.macro_value = 0xE8;    break;
-        case KEY_MEDIA_VOL_DOWN:    data.macro_value = 0xE9;    break;
-        default:                                                break;
+        case KEY_MEDIA_PLAYPAUSE:   data.macro_value = int(drevo::MediaAction::PlayPause);     break;
+        case KEY_MEDIA_STOP:        data.macro_value = int(drevo::MediaAction::Stop);          break;
+        case KEY_MEDIA_PREVIOUS:    data.macro_value = int(drevo::MediaAction::Previous);      break;
+        case KEY_MEDIA_NEXT:        data.macro_value = int(drevo::MediaAction::Next);          break;
+        case KEY_MEDIA_VOL_SILENT:  data.macro_value = int(drevo::MediaAction::Mute);          break;
+        case KEY_MEDIA_VOL_UP:      data.macro_value = int(drevo::MediaAction::VolumeUp);      break;
+        case KEY_MEDIA_VOL_DOWN:    data.macro_value = int(drevo::MediaAction::VolumeDown);    break;
+        default:                                                                        break;
         }
     }
     else if (macro_type == KEY_LINUX)
@@ -220,21 +220,21 @@ KeyAssignment::SaveResult KeyAssignment::save(int key_value, int macro_type, int
         switch (macro_value)
         {
         case KEY_LINUX_TERMINAL:
-            data.macro_value1 = 0xE0;
-            data.macro_value2 = 0xE2;
-            data.macro_value = 0x17;
+            data.macro_value1 = int(drevo::Modifier::LeftCtrl);
+            data.macro_value2 = int(drevo::Modifier::LeftAlt);
+            data.macro_value = 0x17;     // T
             break;
         case KEY_LINUX_COPY:
-            data.macro_value1 = 0xE0;
-            data.macro_value = 0x06;
+            data.macro_value1 = int(drevo::Modifier::LeftCtrl);
+            data.macro_value = 0x06;     // C
             break;
         case KEY_LINUX_PASTE:
-            data.macro_value1 = 0xE0;
-            data.macro_value = 0x19;
+            data.macro_value1 = int(drevo::Modifier::LeftCtrl);
+            data.macro_value = 0x19;     // V
             break;
         case KEY_LINUX_CUT:
-            data.macro_value1 = 0xE0;
-            data.macro_value = 0x1B;
+            data.macro_value1 = int(drevo::Modifier::LeftCtrl);
+            data.macro_value = 0x1B;     // X
             break;
         default:
             break;

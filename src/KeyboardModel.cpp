@@ -9,10 +9,10 @@ KeyboardModel::KeyboardModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     // key geometry of the connected keyboard
-    int kb_layout = DeviceManager::instance() ? DeviceManager::instance()->keyboardLayout() : 1;
-    if (kb_layout == 2)
+    drevo::Layout kb_layout = DeviceManager::instance() ? DeviceManager::instance()->keyboardLayout() : drevo::Layout::Tkl87;
+    if (kb_layout == drevo::Layout::Iso88)
         m_kbimagetype = DT_KB_PRO_88;
-    else if (kb_layout == 4)
+    else if (kb_layout == drevo::Layout::Jis91)
         m_kbimagetype = DT_KB_PRO_91;
     else
         m_kbimagetype = DT_KB_PRO_87;
@@ -119,15 +119,20 @@ void KeyboardModel::checkOnly(int index)
     keysChanged(KeyCheckedRole);
 }
 
-// add the key at index to the checked keys
-void KeyboardModel::addCheck(int index)
+// check or uncheck the key at index, other keys keep their check
+void KeyboardModel::setCheck(int index, bool key_check)
 {
     if (index < 0 || index >= m_keys.size())
         return;
 
-    m_keys[index].key_check = true;
+    m_keys[index].key_check = key_check;
     QModelIndex changed = this->index(index);
     emit dataChanged(changed, changed, { KeyCheckedRole });
+}
+
+bool KeyboardModel::isChecked(int index) const
+{
+    return index >= 0 && index < m_keys.size() && m_keys.at(index).key_check;
 }
 
 // set key color

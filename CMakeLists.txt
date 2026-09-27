@@ -17,11 +17,16 @@ set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED IMPORTED_TARGET libusb-1.0)
 
+option(BUILD_TESTING "Build the tests" ON)
+if(BUILD_TESTING)
+    enable_testing()
+endif()
+
+add_subdirectory(libdrevo)
+
 qt_add_executable(DrevoPowerConsole
     src/main.cpp
-    src/DeviceComm.cpp              include/DeviceComm.h
     src/DeviceDB.cpp                include/DeviceDB.h
-    src/KeyboardData.cpp            include/KeyboardData.h
     src/QtKeyBoardKey.cpp           include/QtKeyBoardKey.h
     src/TabIconProvider.cpp         include/TabIconProvider.h
     src/SingleInstance.cpp          include/SingleInstance.h
@@ -48,6 +53,7 @@ qt_add_qml_module(DrevoPowerConsole
         src/KeyboardModelLayout.cpp
         src/KeyAssignment.cpp       include/KeyAssignment.h
         src/Lighting.cpp            include/Lighting.h
+                                    include/LightModes.h
         src/KeyboardSettings.cpp    include/KeyboardSettings.h
         src/SystemTray.cpp          include/SystemTray.h
 )
@@ -71,7 +77,7 @@ target_link_libraries(DrevoPowerConsole PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Widgets
-    PkgConfig::LIBUSB
+    drevo_keyboard
 )
 
 include(GNUInstallDirs)

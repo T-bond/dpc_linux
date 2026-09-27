@@ -2,6 +2,8 @@
 
 #include "DeviceManager.h"
 
+#include <QDebug>
+
 KeyboardSettings::KeyboardSettings(QObject *parent)
     : QObject(parent)
 {
@@ -71,9 +73,7 @@ void KeyboardSettings::setWirelessSleep(int value)
 // restore the keyboard to its factory settings
 void KeyboardSettings::resetKeyboard()
 {
-    uint8_t kb_data[8] = {0};
-    hid_getResetKeyboard(kb_data);
-    DeviceManager::instance()->comm()->setDeviceData(kb_data, 8);
+    DeviceManager::instance()->keyboard()->resetToFactory();
 }
 
 // load config data
@@ -112,23 +112,26 @@ void KeyboardSettings::updateConfigValue(const QString &key, int value)
 // send keyboard report rate
 void KeyboardSettings::sendReportRate()
 {
-    uint8_t kb_data[8] = {0};
-    hid_getKeyboardReportRate(m_report_rate, kb_data);
-    DeviceManager::instance()->comm()->setDeviceData(kb_data, 8);
+    std::optional<drevo::ReportRate> rate = drevo::enumFromValue<drevo::ReportRate>(m_report_rate);
+    if (!rate)
+    {
+        qWarning() << "invalid report rate, not sent:" << m_report_rate;
+        return;
+    }
+    DeviceManager::instance()->keyboard()->setReportRate(*rate);
 }
 
 // send sleep time
 void KeyboardSettings::sendKeyboardSleepTime(bool wireless_mode)
 {
-    uint8_t kb_data[8] = {0};
+    drevo::Keyboard *keyboard = DeviceManager::instance()->keyboard();
     if (wireless_mode)
     {
         // quirk (kept from the widget UI): the backlight time sent is the USB sleep time
-        hid_getWirelessModeSleepTime(m_usb_sleep, m_wireless_sleep, kb_data);
+        keyboard->setWirelessSleep(drevo::SleepSeconds::clamped(m_usb_sleep), drevo::SleepSeconds::clamped(m_wireless_sleep));
     }
     else
     {
-        hid_getUSBModeSleepTime(m_usb_sleep, kb_data);
+        keyboard->setUsbSleep(drevo::SleepSeconds::clamped(m_usb_sleep));
     }
-    DeviceManager::instance()->comm()->setDeviceData(kb_data, 8);
 }

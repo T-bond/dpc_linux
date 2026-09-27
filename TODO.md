@@ -13,7 +13,7 @@ These are marked `quirk` in the code. Items that change what is sent to the keyb
       with only the second modifier, it stays "Keyboard function" (`src/KeyAssignment.cpp`, `save()`).
 - [ ] **Info box after Save** is not refreshed; it shows the previous assignment until the key is
       selected again (`qml/AssignmentPage.qml`).
-- [ ] **Combo key packets** (`src/KeyboardData.cpp`, `hid_combokeyData()`, `hid_keymacro()`):
+- [ ] **Combo key packets** (`libdrevo/src/Protocol.cpp`, `writeCombo()`, `encodeMacro()`):
   - with one modifier, the target key is pressed twice and never released;
   - with only the second modifier, no key events are written;
   - in macros, the play count byte is overwritten by the first event.
@@ -26,19 +26,16 @@ These are marked `quirk` in the code. Items that change what is sent to the keyb
       its own default colors then (`src/Lighting.cpp`).
 - [ ] **Per-key and side light colors** on the 88 key ISO keyboard, now that the detected layout
       is used for the RGB packet (`src/Lighting.cpp`, `sendKeyRGBData()`).
-- [ ] **Lights off** from the tray sends Static mode with custom color black and brightness 0
-      (`05 fe 01 80 00 00 00 00`); check that all LEDs, including the side lights, go dark
-      (`src/DeviceManager.cpp`, `setLightsOff()`).
 
 ## Limitations
 
 - [ ] **Hardware profile slots**: key assignments are always written to slot G1; G2/G3
-      (Fn+Ctrl+F2/F3) are not used (`kb_profile` parameter of the `hid_*` functions).
+      (Fn+Ctrl+F2/F3) are not used (`kSlot` in `libdrevo/src/Keyboard.cpp`).
 - [ ] **Key assignments at startup** are not sent; the app relies on the keyboard's memory. If the
       keyboard was reset or programmed elsewhere, it differs from the app until a profile switch or
       save (`src/DeviceManager.cpp`).
 - [ ] **2.4G dongle** "BM87 PRO 2.4G" (`1a2c:b31f`) is not in the device table and is ignored
-      (`src/DeviceComm.cpp`, `IsExsitDevice()`).
+      (`libdrevo/src/Keyboard.cpp`, `supportedDevices()`).
 - [ ] **Stored macro names** are saved in the language active at the time and are not translated
       later.
 - [ ] **Color dialog**: "Color" and "Hex" stay in English in Hungarian (missing from Qt's own
@@ -49,4 +46,3 @@ These are marked `quirk` in the code. Items that change what is sent to the keyb
 
 ## Bugs
 - [ ] Clicking on cancel on an assignment page multiple times create multiple Ok buttons in the dialog
-- [ ] System tray profile selector show multiple selected item on selecting a profile

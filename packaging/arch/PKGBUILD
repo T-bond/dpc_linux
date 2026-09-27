@@ -6,7 +6,7 @@
 # not "drevo-power-console-git": that name belongs to the AUR package of the original project,
 # and yay would replace this build with it on updates
 pkgname=drevo-power-console-qt6-git
-pkgver=r0.0000000
+pkgver=r16.6232980
 pkgrel=1
 pkgdesc="Configuration tool for DREVO keyboards (key assignments, lighting, settings)"
 arch=('x86_64' 'aarch64')
